@@ -1,9 +1,0 @@
-modules:
-  ResourceGroup:
-    - "azurerm_resource_group"
-  StorageAccount:
-    - "azurerm_storage_account"
-    - "azurerm_storage_container"
-  Network:
-    - "azurerm_virtual_network"
-    - "azurerm_subnet"

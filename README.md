@@ -10,7 +10,7 @@ TFModule is a tool that let's you define a module structure and creates the nece
 1. Make sure tfexport is already installed in your system. 
 
 2. Create a tfmodule.yaml file where the module structure is defined (example file
-can be seen [here](./tfmodule.yaml) 
+can be seen [here](./example/tfmodule.yaml) 
 
 3. Run the following command specifying the resource group that you want to convert
 to Terraform.
