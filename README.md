@@ -18,3 +18,8 @@ to Terraform.
 ```sh
 tfmodule desired-rg
 ```
+
+## Roadmap
+
+- [ ] Read and parse main.tf and
+- [ ] Put them into the correct modules
