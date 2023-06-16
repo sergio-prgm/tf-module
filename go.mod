@@ -1,4 +1,4 @@
-module github.com/sergio-prgm/tf-module/tree/main
+module github.com/sergio-prgm/tf-module
 
 go 1.20
 

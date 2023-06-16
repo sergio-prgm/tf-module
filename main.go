@@ -1,11 +1,11 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"github.com/sergio-prgm/tf-module/utils"
 
 	"gopkg.in/yaml.v3"
 )
@@ -24,18 +24,6 @@ type parsedTf struct {
 	modules   []string
 }
 
-func StartsWith(line, comp string) (bool, error) {
-	if len(line) < len(comp) {
-		return false, errors.New("Chars out ouf range!")
-	} else {
-		for i := 0; i < len(comp); i++ {
-			if comp[i] != line[i] {
-				return false, nil
-			}
-		}
-		return true, nil
-	}
-}
 
 func readTf(raw []byte) parsedTf {
 	file := string(raw[:])
@@ -125,4 +113,10 @@ func main() {
 	// fmt.Print(tf)
 	// readTf(tf)
 	// fmt.Printf("%v", parsed.modules[0])
+	dos, _ := utils.StartsWith("resource \"azurerm\"", "resource")
+	fmt.Printf("resource -> %t\n", dos)
+	does, _ := utils.StartsWith("resource \"azurerm\"", "resoure")
+	fmt.Printf("resoure -> %t\n", does)
+	doesnot, _ := utils.StartsWith("{", "resoure")
+	fmt.Printf("out -> %t\n", doesnot)
 }
