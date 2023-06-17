@@ -36,17 +36,13 @@ func readTf(raw []byte) parsedTf {
 	var rawModules []string
 
 	var currentBlock string
+
 	for i := 0; i < len(fileLines); i++ {
-		// if len(fileLines[i]) > 8 && fileLines[i][0:8] == "resource" {
-		// 	isModule = true
-		// 	isBlock = true
-		// }
+
 		if !isBlock {
-			// fmt.Print("\naint block")
-			fmt.Print(i)
-			fmt.Print("Not a block\n")
+
 			firstWord := strings.Split(fileLines[i], " ")[0]
-			fmt.Print(firstWord)
+
 			if firstWord == "resource" {
 				fmt.Print("\nStart of resource\n")
 				isModule = true
@@ -60,7 +56,6 @@ func readTf(raw []byte) parsedTf {
 				currentBlock = ""
 				isBlock = false
 			}
-
 		}
 		if fileLines[i] == "}" && isBlock {
 			if isModule {
@@ -83,8 +78,25 @@ func readTf(raw []byte) parsedTf {
 		modules:   rawModules,
 		providers: rawProv,
 	}
+}
 
-	// TODO save an isModule variable that resets when first char is }
+func SaveModules(parsed parsedTf) error {
+	_, err := os.Stat("output")
+	if os.IsNotExist(err) {
+
+		fmt.Print("Creating folder...")
+
+		err = os.Mkdir("output", os.ModePerm)
+		if err != nil {
+			log.Fatalf("Error creating dir:\n%v", err)
+		}
+	}
+	err = os.WriteFile("./output/main.tf", []byte(strings.Join(parsed.providers, "\n\n")), os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating main.tf:\n%v", err)
+	}
+	return nil
 }
 
 func main() {
@@ -116,10 +128,13 @@ func main() {
 	for i := 0; i < len(module.Modules); i++ {
 		fmt.Printf("\nmodule: %s\nresources: %v\n", module.Modules[i].Name, module.Modules[i].Resources)
 	}
-	// fmt.Print(tf)
 	result := readTf(tf)
-	fmt.Printf("Providers length: %d\n", len(result.providers))
-	fmt.Printf("Providers: %v\n", result.providers)
-	fmt.Printf("Modules length: %d\n", len(result.modules))
-	fmt.Printf("Modules: %v\n", result.modules)
+	// fmt.Printf("Providers length: %d\n", len(result.providers))
+	// fmt.Printf("Providers: %v\n", result.providers)
+	// fmt.Printf("Modules length: %d\n", len(result.modules))
+	// fmt.Printf("Modules: %v\n", result.modules)
+	err = SaveModules(result)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

@@ -21,7 +21,7 @@ tfmodule desired-rg
 
 ## Roadmap
 
-- [ ] Read and parse main.tf and
+- [x] Read and parse main.tf and
     - [x] Modules
-    - [ ] Main (providers)
+    - [x] Main (providers)
 - [ ] Put them into the correct modules
