@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	// "github.com/sergio-prgm/tf-module/utils"
 	"log"
 	"os"
 	"strings"
-	"github.com/sergio-prgm/tf-module/utils"
 
 	"gopkg.in/yaml.v3"
 )
@@ -23,7 +23,6 @@ type parsedTf struct {
 	providers []string
 	modules   []string
 }
-
 
 func readTf(raw []byte) parsedTf {
 	file := string(raw[:])
@@ -43,29 +42,37 @@ func readTf(raw []byte) parsedTf {
 		// 	isBlock = true
 		// }
 		if !isBlock {
-			fmt.Print("\naint block")
-			if fileLines[i][:8] == "resource" {
+			// fmt.Print("\naint block")
+			fmt.Print(i)
+			fmt.Print("Not a block\n")
+			firstWord := strings.Split(fileLines[i], " ")[0]
+			fmt.Print(firstWord)
+			if firstWord == "resource" {
+				fmt.Print("\nStart of resource\n")
 				isModule = true
 				isBlock = true
+			} else if firstWord == "terraform" || firstWord == "provider" {
+				fmt.Print("\nStart of provider/tf\n")
+				isBlock = true
+				isProv = true
+			} else {
+				fmt.Print("\nBlank space\n")
+				currentBlock = ""
+				isBlock = false
 			}
-			// if fileLines[i][:8] == "terrafor" {
-			// 	isBlock = true
-			// 	isProv = true
-			// }
+
 		}
 		if fileLines[i] == "}" && isBlock {
 			if isModule {
 				currentBlock += fileLines[i]
 				rawModules = append(rawModules, currentBlock)
 				isModule = false
+				isBlock = false
 			} else if isProv {
 				currentBlock += fileLines[i]
 				rawProv = append(rawProv, currentBlock)
 				isProv = false
-			} else {
-				currentBlock = ""
 				isBlock = false
-				fmt.Printf("\n\n%d:\n%v", len(rawModules), rawModules[len(rawModules)-1])
 			}
 		}
 		if isBlock {
@@ -82,23 +89,22 @@ func readTf(raw []byte) parsedTf {
 
 func main() {
 	configFile := "./example/tfmodule.yaml"
-	// tfFile := "./example/main.tf"
-	// file := "./easy.yaml"
+	tfFile := "./example/main.tf"
 	conf, err := os.ReadFile(configFile)
 
 	if err != nil {
-		log.Fatalf("ERROR: %s doesn't elist", configFile)
+		log.Fatalf("ERROR: %s doesn't exist", configFile)
 	} else {
 		fmt.Printf("Reading modules from %s\n", configFile)
 	}
 
-	// tf, err := os.ReadFile(tfFile)
-	//
-	// if err != nil {
-	// 	log.Fatalf("ERROR: %s doesn't elist", tfFile)
-	// } else {
-	// 	fmt.Printf("Reading terraform main from %s\n", tfFile)
-	// }
+	tf, err := os.ReadFile(tfFile)
+
+	if err != nil {
+		log.Fatalf("ERROR: %s doesn't exist", tfFile)
+	} else {
+		fmt.Printf("Reading terraform main from %s\n", tfFile)
+	}
 
 	module := F{}
 	err = yaml.Unmarshal(conf, &module)
@@ -111,12 +117,9 @@ func main() {
 		fmt.Printf("\nmodule: %s\nresources: %v\n", module.Modules[i].Name, module.Modules[i].Resources)
 	}
 	// fmt.Print(tf)
-	// readTf(tf)
-	// fmt.Printf("%v", parsed.modules[0])
-	dos, _ := utils.StartsWith("resource \"azurerm\"", "resource")
-	fmt.Printf("resource -> %t\n", dos)
-	does, _ := utils.StartsWith("resource \"azurerm\"", "resoure")
-	fmt.Printf("resoure -> %t\n", does)
-	doesnot, _ := utils.StartsWith("{", "resoure")
-	fmt.Printf("out -> %t\n", doesnot)
+	result := readTf(tf)
+	fmt.Printf("Providers length: %d\n", len(result.providers))
+	fmt.Printf("Providers: %v\n", result.providers)
+	fmt.Printf("Modules length: %d\n", len(result.modules))
+	fmt.Printf("Modules: %v\n", result.modules)
 }

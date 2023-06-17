@@ -1,6 +1,9 @@
 package utils
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 
 func StartsWith(line, comp string) (bool, error) {
@@ -13,5 +16,14 @@ func StartsWith(line, comp string) (bool, error) {
 			}
 		}
 		return true, nil
+	}
+}
+
+func FirstWordIs(line, comp string) (bool, error) {
+	if len(line) < len(comp) {
+		return false, errors.New("Chars out ouf range!")
+	} else {
+		firstWord := strings.Split(line, " ")[0]
+		return firstWord == comp, nil
 	}
 }
