@@ -27,7 +27,7 @@ tfmodule desired-rg
   - [x] Main (providers)
 - [ ] Add flag to just check if all modules in main.tf are represented in yaml file.
 But do it anyways
-- [ ] Put them into the correct modules
+- [x] Put them into the correct modules
 
 ### Extra
 
@@ -35,19 +35,18 @@ But do it anyways
 - [ ] Suggest (os create) for_each in repeated resources
 
 1. Create "output" & "output/modules" folders
-
 2. Write "main.tf", and the respective module files
 
 ### Create main.tf
 
 1. ~~Write providers (from tfexport file)~~
-2. Write modules (from yaml config file)
+2. ~~Write modules (from yaml config file)~~
 3. *Write variables*
 
 ### Create modules
 
-1. Write resources (from tfexport file)
-2. Create *blank* "variables.tf" and *output.tf*
+1. ~~Write resources (from tfexport file)~~
+2. ~~Create *blank* "variables.tf" and *output.tf*~~
 
 ├─ output/
 ├─── main.tf
