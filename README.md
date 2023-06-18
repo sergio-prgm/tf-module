@@ -21,7 +21,42 @@ tfmodule desired-rg
 
 ## Roadmap
 
+- [x] Read yaml config file
 - [x] Read and parse main.tf and
     - [x] Modules
     - [x] Main (providers)
 - [ ] Put them into the correct modules
+
+### Extra
+
+- [ ] Suggest (os create) for_each in repeated resources
+
+1. Create "output" & "output/modules" folders
+
+2. Write "main.tf", and the respective module files
+
+### Create main.tf
+
+1. ~~Write providers (from tfexport file)~~
+2. Write modules (from yaml config file)
+3. *Write variables*
+
+### Create modules
+
+1. Write resources (from tfexport file)
+2. Create *blank* "variables.tf" and *output.tf*
+
+├─ output/
+├─── main.tf
+├─── terraform.tfvars
+├─── variables.tf
+└─── modules/
+├───── StorageAccount/
+├─────── main.tf
+├─────── outputs.tf 
+└─────── variables.tf 
+├───── ResourceGroups/
+├─────── main.tf
+├─────── outputs.tf 
+└─────── variables.tf 
+

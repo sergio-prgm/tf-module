@@ -91,12 +91,49 @@ func SaveModules(parsed parsedTf) error {
 			log.Fatalf("Error creating dir:\n%v", err)
 		}
 	}
-	err = os.WriteFile("./output/main.tf", []byte(strings.Join(parsed.providers, "\n\n")), os.ModePerm)
+
+	err = os.WriteFile("./output/main.tf",
+		[]byte(strings.Join(parsed.providers, "\n\n")),
+		os.ModePerm)
 
 	if err != nil {
 		log.Fatalf("Error creating main.tf:\n%v", err)
 	}
+
+	fmt.Print("\noutput/main.tf created...")
+	fmt.Print("\n")
 	return nil
+}
+
+func createModuleFiles(config F) {
+	fmt.Print("\nRunning createModuleFiles\n")
+	_, err := os.Stat("output")
+
+	if os.IsNotExist(err) {
+
+		fmt.Print("\nCreating folders...")
+
+		err = os.Mkdir("output", os.ModePerm)
+		if err != nil {
+			log.Fatalf("\nError creating output dir:\n%v", err)
+		}
+		err = os.MkdirAll("output/Modules", os.ModePerm)
+		if err != nil {
+			log.Fatalf("\nError creating Modules dir:\n%v", err)
+		}
+	} else {
+		fmt.Print("\n'output' folder already exists.")
+	}
+
+	for _, v := range config.Modules {
+		fmt.Printf("\nCreating %s folder", v.Name)
+		path := fmt.Sprintf("output/Modules/%s", v.Name)
+		err := os.MkdirAll(path, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	fmt.Print("\n")
 }
 
 func main() {
@@ -129,10 +166,12 @@ func main() {
 		fmt.Printf("\nmodule: %s\nresources: %v\n", module.Modules[i].Name, module.Modules[i].Resources)
 	}
 	result := readTf(tf)
+
 	// fmt.Printf("Providers length: %d\n", len(result.providers))
 	// fmt.Printf("Providers: %v\n", result.providers)
 	// fmt.Printf("Modules length: %d\n", len(result.modules))
 	// fmt.Printf("Modules: %v\n", result.modules)
+	createModuleFiles(module)
 	err = SaveModules(result)
 	if err != nil {
 		log.Fatal(err)
