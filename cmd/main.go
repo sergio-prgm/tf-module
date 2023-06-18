@@ -17,6 +17,7 @@ type Modules struct {
 
 type F struct {
 	Modules []Modules `yaml:"modules"`
+	Confg   []string  `yaml:"config"`
 }
 
 type parsedTf struct {
@@ -48,11 +49,11 @@ func readTf(raw []byte) parsedTf {
 				isModule = true
 				isBlock = true
 			} else if firstWord == "terraform" || firstWord == "provider" {
-				fmt.Print("\nStart of provider/tf\n")
+				// fmt.Print("\nStart of provider/tf\n")
 				isBlock = true
 				isProv = true
 			} else {
-				fmt.Print("\nBlank space\n")
+				// fmt.Print("\nBlank space\n")
 				currentBlock = ""
 				isBlock = false
 			}
@@ -176,4 +177,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// fmt.Print(util.EmphasizeStr("Emphasize str\n", util.Blue, util.Normal))
+	// fmt.Print(util.EmphasizeStr("Emphasize str\n", util.Blue, util.Bold))
 }

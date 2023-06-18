@@ -10,3 +10,6 @@ modules:
     resources:
       - "azurerm_virtual_network"
       - "azurerm_subnet"
+config:
+  - one
+  - two
