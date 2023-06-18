@@ -19,6 +19,21 @@ to Terraform.
 tfmodule desired-rg
 ```
 
+## Dev Commands
+
+```sh
+go build ./cmd/main.go && ./main -daily
+```
+### Cross Compile
+
+```sh
+GOOS=windows GOARCH=amd64 go build -o ./bin/win/tfmodule.exe ./cmd/main.go
+```
+
+```sh
+GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule./cmd/main.go
+```
+
 ## Roadmap
 
 - [x] Read yaml config file
@@ -49,17 +64,21 @@ But do it anyways
 2. ~~Create *blank* "variables.tf" and *output.tf*~~
 
 ```
-├─ output/
-├─── main.tf
-├─── terraform.tfvars
-├─── variables.tf
-└─── modules/
-├───── StorageAccount/
-├─────── main.tf
-├─────── outputs.tf
-└─────── variables.tf
-├───── ResourceGroups/
-├─────── main.tf
-├─────── outputs.tf
-└─────── variables.tf
+output
+├── Modules
+│   ├── Network
+│   │   ├── main.tf
+│   │   ├── output.tf
+│   │   └── variables.tf
+│   ├── ResourceGroup
+│   │   ├── main.tf
+│   │   ├── output.tf
+│   │   └── variables.tf
+│   └── StorageAccount
+│       ├── main.tf
+│       ├── output.tf
+│       └── variables.tf
+└── main.tf
+
+5 directories, 10 files
 ```
