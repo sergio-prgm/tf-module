@@ -170,6 +170,19 @@ func createFolders(config F) {
 	fmt.Print("\n")
 }
 
+
+// validateModules checks whether the information in the config file matches the
+// contents of the main.tf and prompts the user the information
+func validateModules (configFile F, parsedFile parsedTf) bool {
+	return false
+}
+
+// updateConfig allows the user to modify the contents of the config file to 
+// accommodate late changes or forgotten modules/resources/etc.
+func updateConfig () error {
+	return nil
+}
+
 func main() {
 	configFile := "./example/tfmodule.yaml"
 	tfFile := "./example/main.tf"
