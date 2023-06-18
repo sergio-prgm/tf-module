@@ -48,6 +48,7 @@ But do it anyways
 1. ~~Write resources (from tfexport file)~~
 2. ~~Create *blank* "variables.tf" and *output.tf*~~
 
+```
 ├─ output/
 ├─── main.tf
 ├─── terraform.tfvars
@@ -61,3 +62,4 @@ But do it anyways
 ├─────── main.tf
 ├─────── outputs.tf
 └─────── variables.tf
+```

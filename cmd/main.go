@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sergio-prgm/tf-module/pkg/util"
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 )
@@ -46,7 +47,7 @@ func readTf(raw []byte) parsedTf {
 			firstWord := strings.Split(fileLines[i], " ")[0]
 
 			if firstWord == "resource" {
-				fmt.Print("\nStart of resource\n")
+				// fmt.Print("\nStart of resource\n")
 				isModule = true
 				isBlock = true
 			} else if firstWord == "terraform" || firstWord == "provider" {
@@ -82,7 +83,8 @@ func readTf(raw []byte) parsedTf {
 	}
 }
 
-func SaveModules(parsedBlocks parsedTf, configModules F) error {
+func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
+	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
 	err := os.WriteFile("./output/main.tf",
 		[]byte(strings.Join(parsedBlocks.providers, "\n\n")),
 		os.ModePerm)
@@ -130,14 +132,15 @@ func SaveModules(parsedBlocks parsedTf, configModules F) error {
 		} else {
 			fmt.Printf("\n%s created...", filePath+"variables.tf")
 		}
+		fmt.Println()
 
 	}
 
 	return nil
 }
 
-func createModuleFiles(config F) {
-	fmt.Print("\nRunning createModuleFiles\n")
+func createFolders(config F) {
+	fmt.Print(util.EmphasizeStr("\nCreating folders...", util.Green, util.Bold))
 	_, err := os.Stat("output")
 
 	if os.IsNotExist(err) {
@@ -175,7 +178,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("ERROR: %s doesn't exist", configFile)
 	} else {
-		fmt.Printf("Reading modules from %s\n", configFile)
+		fmt.Printf("Reading modules from %s\n", util.EmphasizeStr(configFile, util.Yellow, util.Normal))
 	}
 
 	tf, err := os.ReadFile(tfFile)
@@ -183,7 +186,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("ERROR: %s doesn't exist", tfFile)
 	} else {
-		fmt.Printf("Reading terraform main from %s\n", tfFile)
+		fmt.Printf("Reading terraform main from %s\n", util.EmphasizeStr(tfFile, util.Yellow, util.Normal))
 	}
 
 	configModules := F{}
@@ -202,8 +205,8 @@ func main() {
 	// fmt.Printf("Providers: %v\n", result.providers)
 	// fmt.Printf("Modules length: %d\n", len(result.modules))
 	// fmt.Printf("Modules: %v\n", result.modules)
-	createModuleFiles(configModules)
-	err = SaveModules(parsedBlocks, configModules)
+	createFolders(configModules)
+	err = createModuleFiles(parsedBlocks, configModules)
 	if err != nil {
 		log.Fatal(err)
 	}
