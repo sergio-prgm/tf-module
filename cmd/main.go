@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 )
 
@@ -81,20 +82,9 @@ func readTf(raw []byte) parsedTf {
 	}
 }
 
-func SaveModules(parsed parsedTf) error {
-	_, err := os.Stat("output")
-	if os.IsNotExist(err) {
-
-		fmt.Print("Creating folder...")
-
-		err = os.Mkdir("output", os.ModePerm)
-		if err != nil {
-			log.Fatalf("Error creating dir:\n%v", err)
-		}
-	}
-
-	err = os.WriteFile("./output/main.tf",
-		[]byte(strings.Join(parsed.providers, "\n\n")),
+func SaveModules(parsedBlocks parsedTf, configModules F) error {
+	err := os.WriteFile("./output/main.tf",
+		[]byte(strings.Join(parsedBlocks.providers, "\n\n")),
 		os.ModePerm)
 
 	if err != nil {
@@ -103,6 +93,46 @@ func SaveModules(parsed parsedTf) error {
 
 	fmt.Print("\noutput/main.tf created...")
 	fmt.Print("\n")
+
+	for _, v := range configModules.Modules {
+		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
+		content := ""
+		for _, module := range parsedBlocks.modules {
+			resourceName := strings.Split(module, "\"")[1]
+			if slices.Contains(v.Resources, resourceName) {
+				if content == "" {
+					content = module
+				} else {
+					content = content + "\n\n" + module
+				}
+			}
+		}
+		err := os.WriteFile(filePath+"main.tf",
+			[]byte(content),
+			os.ModePerm)
+
+		if err != nil {
+			log.Fatalf("Error creating %s:\n%v", filePath+"main.tf", err)
+		} else {
+			fmt.Printf("\n%s created...", filePath+"main.tf")
+		}
+
+		_, err = os.Create(filePath + "output.tf")
+		if err != nil {
+			log.Fatalf("Error creating %s:\n%v", filePath+"output.tf", err)
+		} else {
+			fmt.Printf("\n%s created...", filePath+"output.tf")
+		}
+
+		_, err = os.Create(filePath + "variables.tf")
+		if err != nil {
+			log.Fatalf("Error creating %s:\n%v", filePath+"variables.tf", err)
+		} else {
+			fmt.Printf("\n%s created...", filePath+"variables.tf")
+		}
+
+	}
+
 	return nil
 }
 
@@ -156,24 +186,24 @@ func main() {
 		fmt.Printf("Reading terraform main from %s\n", tfFile)
 	}
 
-	module := F{}
-	err = yaml.Unmarshal(conf, &module)
+	configModules := F{}
+	err = yaml.Unmarshal(conf, &configModules)
 
 	if err != nil {
 		log.Fatal()
 	}
 
-	for i := 0; i < len(module.Modules); i++ {
-		fmt.Printf("\nmodule: %s\nresources: %v\n", module.Modules[i].Name, module.Modules[i].Resources)
+	for i := 0; i < len(configModules.Modules); i++ {
+		fmt.Printf("\nmodule: %s\nresources: %v\n", configModules.Modules[i].Name, configModules.Modules[i].Resources)
 	}
-	result := readTf(tf)
+	parsedBlocks := readTf(tf)
 
 	// fmt.Printf("Providers length: %d\n", len(result.providers))
 	// fmt.Printf("Providers: %v\n", result.providers)
 	// fmt.Printf("Modules length: %d\n", len(result.modules))
 	// fmt.Printf("Modules: %v\n", result.modules)
-	createModuleFiles(module)
-	err = SaveModules(result)
+	createModuleFiles(configModules)
+	err = SaveModules(parsedBlocks, configModules)
 	if err != nil {
 		log.Fatal(err)
 	}
