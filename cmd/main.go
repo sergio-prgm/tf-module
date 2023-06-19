@@ -85,8 +85,26 @@ func readTf(raw []byte) parsedTf {
 
 func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
 	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
+	
+	modulesBlocks := ""
+
+	for i, v := range configModules.Modules {
+
+		modulesBlocks += fmt.Sprintf(
+			"module \"%s\" {\n\tresource = \"./Modules/%s\"\n}\n",
+			v.Name,
+			v.Name,
+		)
+
+		if i != len(configModules.Modules) - 1 {
+			modulesBlocks += "\n"	
+		}
+	}
+
+	mainContent := strings.Join(parsedBlocks.providers, "\n\n") + "\n\n" + modulesBlocks
+	
 	err := os.WriteFile("./output/main.tf",
-		[]byte(strings.Join(parsedBlocks.providers, "\n\n")),
+		[]byte(mainContent),
 		os.ModePerm)
 
 	if err != nil {
