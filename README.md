@@ -31,7 +31,7 @@ GOOS=windows GOARCH=amd64 go build -o ./bin/win/tfmodule.exe ./cmd/main.go
 ```
 
 ```sh
-GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule./cmd/main.go
+GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule ./cmd/main.go
 ```
 
 ## Roadmap
