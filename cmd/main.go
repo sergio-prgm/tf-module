@@ -85,7 +85,7 @@ func readTf(raw []byte) parsedTf {
 
 func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
 	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
-	
+
 	modulesBlocks := ""
 
 	for i, v := range configModules.Modules {
@@ -96,13 +96,13 @@ func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
 			v.Name,
 		)
 
-		if i != len(configModules.Modules) - 1 {
-			modulesBlocks += "\n"	
+		if i != len(configModules.Modules)-1 {
+			modulesBlocks += "\n"
 		}
 	}
 
 	mainContent := strings.Join(parsedBlocks.providers, "\n\n") + "\n\n" + modulesBlocks
-	
+
 	err := os.WriteFile("./output/main.tf",
 		[]byte(mainContent),
 		os.ModePerm)
@@ -188,20 +188,20 @@ func createFolders(config F) {
 	fmt.Print("\n")
 }
 
-
 // validateModules checks whether the information in the config file matches the
 // contents of the main.tf and prompts the user the information
-func validateModules (configFile F, parsedFile parsedTf) bool {
+func validateModules(configFile F, parsedFile parsedTf) bool {
 	return false
 }
 
-// updateConfig allows the user to modify the contents of the config file to 
+// updateConfig allows the user to modify the contents of the config file to
 // accommodate late changes or forgotten modules/resources/etc.
-func updateConfig () error {
+func updateConfig() error {
 	return nil
 }
 
 func main() {
+	// TODO ask for the source files path in a flag [otherwise default to ./] (yaml & main)
 	configFile := "./example/tfmodule.yaml"
 	tfFile := "./example/main.tf"
 	conf, err := os.ReadFile(configFile)

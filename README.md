@@ -24,6 +24,7 @@ tfmodule desired-rg
 ```sh
 go build ./cmd/main.go && ./main -daily
 ```
+
 ### Cross Compile
 
 ```sh
@@ -40,6 +41,8 @@ GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule ./cmd/main.go
 - [x] Read and parse main.tf and
   - [x] Modules
   - [x] Main (providers)
+
+- [ ] ask for the source files path in a flag [otherwise default to ./] (yaml & main)
 - [ ] Add flag to just check if all modules in main.tf are represented in yaml file.
 But do it anyways
 - [x] Put them into the correct modules
