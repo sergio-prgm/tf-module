@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	// "github.com/sergio-prgm/tf-module/utils"
 	"log"
@@ -55,7 +56,6 @@ func readTf(raw []byte) parsedTf {
 				isBlock = true
 				isProv = true
 			} else {
-				// fmt.Print("\nBlank space\n")
 				currentBlock = ""
 				isBlock = false
 			}
@@ -66,11 +66,13 @@ func readTf(raw []byte) parsedTf {
 				rawModules = append(rawModules, currentBlock)
 				isModule = false
 				isBlock = false
+				currentBlock = ""
 			} else if isProv {
 				currentBlock += fileLines[i]
 				rawProv = append(rawProv, currentBlock)
 				isProv = false
 				isBlock = false
+				currentBlock = ""
 			}
 		}
 		if isBlock {
@@ -201,9 +203,23 @@ func updateConfig() error {
 }
 
 func main() {
+
+	src := flag.String("src", "./", "The folder or path where the aztfexport files are located")
+	cref := flag.String("conf", "./", "The folder or path where the yaml config file is located")
+	check := flag.Bool("validate", false, "Validate the contents of the yaml config against the terraform file")
+
+	flag.Parse()
+
+
+	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading config in %s\n", *cref), util.Yellow, util.Normal))
+	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading terraform code in %s\n", *src), util.Yellow, util.Normal))
+	if *check {
+		fmt.Print(util.EmphasizeStr(fmt.Sprint("A validation will be performed before creating output files\n"), util.Yellow, util.Normal))
+	}
+
 	// TODO ask for the source files path in a flag [otherwise default to ./] (yaml & main)
-	configFile := "./example/tfmodule.yaml"
-	tfFile := "./example/main.tf"
+	tfFile := fmt.Sprintf("%s/main.tf", strings.TrimSuffix(*src, "/"))
+	configFile := fmt.Sprintf("%s/tfmodule.yaml", strings.TrimSuffix(*cref, "/"))
 	conf, err := os.ReadFile(configFile)
 
 	if err != nil {

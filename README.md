@@ -41,7 +41,7 @@ GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule ./cmd/main.go
 - [x] Read and parse main.tf and
   - [x] Modules
   - [x] Main (providers)
-
+- [ ] Read multiple tf files (providers, terraform, etc.)
 - [ ] ask for the source files path in a flag [otherwise default to ./] (yaml & main)
 - [ ] Add flag to just check if all modules in main.tf are represented in yaml file.
 But do it anyways
