@@ -54,6 +54,7 @@ But do it anyways
 
 1. Create "output" & "output/modules" folders
 2. Write "main.tf", and the respective module files
+3. Bla
 
 ### Create main.tf
 
