@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	// "github.com/sergio-prgm/tf-module/utils"
 	"log"
 	"os"
@@ -204,22 +205,23 @@ func updateConfig() error {
 
 func main() {
 
-	src := flag.String("src", "./", "The folder or path where the aztfexport files are located")
-	cref := flag.String("conf", "./", "The folder or path where the yaml config file is located")
+	rsrc := flag.String("src", "./", "The folder or path where the aztfexport files are located")
+	ryml := flag.String("conf", "./", "The folder or path where the yaml config file is located")
 	check := flag.Bool("validate", false, "Validate the contents of the yaml config against the terraform file")
 
 	flag.Parse()
 
+	src := util.NormalizePath(*rsrc)
+	yml := util.NormalizePath(*ryml)
 
-	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading config in %s\n", *cref), util.Yellow, util.Normal))
-	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading terraform code in %s\n", *src), util.Yellow, util.Normal))
+	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading config in %s\n", yml), util.Yellow, util.Normal))
+	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading terraform code in %s\n", src), util.Yellow, util.Normal))
 	if *check {
-		fmt.Print(util.EmphasizeStr(fmt.Sprint("A validation will be performed before creating output files\n"), util.Yellow, util.Normal))
+		fmt.Print(util.EmphasizeStr("A validation will be performed before creating output files\n", util.Yellow, util.Normal))
 	}
 
-	// TODO ask for the source files path in a flag [otherwise default to ./] (yaml & main)
-	tfFile := fmt.Sprintf("%s/main.tf", strings.TrimSuffix(*src, "/"))
-	configFile := fmt.Sprintf("%s/tfmodule.yaml", strings.TrimSuffix(*cref, "/"))
+	tfFile := fmt.Sprintf("%s/main.tf", strings.TrimSuffix(src, "/"))
+	configFile := fmt.Sprintf("%s/tfmodule.yaml", strings.TrimSuffix(yml, "/"))
 	conf, err := os.ReadFile(configFile)
 
 	if err != nil {
@@ -228,7 +230,27 @@ func main() {
 		fmt.Printf("Reading modules from %s\n", util.EmphasizeStr(configFile, util.Yellow, util.Normal))
 	}
 
-	tf, err := os.ReadFile(tfFile)
+	tfFiles, err := os.ReadDir(strings.TrimSuffix(src, "/"))
+	allTf := []byte("")
+
+	// for _, v := range tfFiles {
+	for i := len(tfFiles) - 1; i >= 0; i-- {
+		v := tfFiles[i]
+		if strings.HasSuffix(v.Name(), ".tf") {
+			fmt.Println(v.Name())
+			currentTfFile, err := os.ReadFile(src + v.Name())
+			if err != nil {
+				log.Fatal(err)
+			}
+			allTf = append(allTf, currentTfFile...)
+		}
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// tf, err := os.ReadFile(tfFile)
 
 	if err != nil {
 		log.Fatalf("ERROR: %s doesn't exist", tfFile)
@@ -246,7 +268,7 @@ func main() {
 	for i := 0; i < len(configModules.Modules); i++ {
 		fmt.Printf("\nmodule: %s\nresources: %v\n", configModules.Modules[i].Name, configModules.Modules[i].Resources)
 	}
-	parsedBlocks := readTf(tf)
+	parsedBlocks := readTf(allTf)
 
 	// fmt.Printf("Providers length: %d\n", len(result.providers))
 	// fmt.Printf("Providers: %v\n", result.providers)
