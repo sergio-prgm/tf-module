@@ -41,8 +41,8 @@ GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule ./cmd/main.go
 - [x] Read and parse main.tf and
   - [x] Modules
   - [x] Main (providers)
-- [ ] Read multiple tf files (providers, terraform, etc.)
-- [ ] ask for the source files path in a flag [otherwise default to ./] (yaml & main)
+- [x] Read multiple tf files (providers, terraform, etc.)
+- [x] ask for the source files path in a flag [otherwise default to ./] (yaml & main)
 - [ ] Add flag to just check if all modules in main.tf are represented in yaml file.
 But do it anyways
 - [x] Put them into the correct modules
@@ -66,7 +66,7 @@ But do it anyways
 1. ~~Write resources (from tfexport file)~~
 2. ~~Create *blank* "variables.tf" and *output.tf*~~
 
-```
+```plaintext
 output
 ├── Modules
 │   ├── Network
