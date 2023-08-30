@@ -110,7 +110,7 @@ func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
 	for i, v := range configModules.Modules {
 
 		modulesBlocks += fmt.Sprintf(
-			"module \"%s\" {\n\tresource = \"./Modules/%s\"\n}\n",
+			"module \"%s\" {\n\tsource = \"./Modules/%s\"\n}\n",
 			v.Name,
 			v.Name,
 		)
