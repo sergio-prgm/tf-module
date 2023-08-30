@@ -36,6 +36,7 @@ func readTf(raw []byte) parsedTf {
 	isProv := false
 	isModule := false
 	isBlock := false
+	isDependsOn := false
 
 	var rawProv []string
 	var rawModules []string
@@ -77,8 +78,23 @@ func readTf(raw []byte) parsedTf {
 			}
 		}
 		if isBlock {
-			currentBlock += fileLines[i] + "\n"
+			if !isDependsOn {
+				// if util.FirstWordIs(fileLines[i])
+				firstWordInside := strings.Split(strings.TrimSpace(fileLines[i]), " ")[0]
+
+				if firstWordInside == "depends_on" {
+					isDependsOn = true
+				} else {
+					currentBlock += fileLines[i] + "\n"
+				}
+			} else {
+				firstWordInside := strings.Split(strings.TrimSpace(fileLines[i]), " ")[0]
+				if firstWordInside == "]" {
+					isDependsOn = false
+				}
+			}
 		}
+
 	}
 	return parsedTf{
 		modules:   rawModules,
