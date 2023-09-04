@@ -27,6 +27,7 @@ to Terraform.
 
 ```sh
 tfmodule desired-rg
+tfmodule -conf <config folder> -src <aztfexport code>
 ```
 
 ## Dev Commands
@@ -67,12 +68,13 @@ GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule ./cmd/main.go
 - [x] Put them into the correct modules
 - [ ] **Cod** **1** Implement `for_each` in repeated resources
 (priority because this affects imports and code structure)
+- [ ] **Dev** **Use** Implement auto release in CI
+- [ ] **Use** Add csv file with all the existing resources ([csv example](./example/modules.csv))
+- [ ] **Cod** Generate `.tfvars` with raw variables
 - [ ] **Use** Research a way to make #2 easy/straightforward.
 - [ ] **Dev** Improve readibility of code :)
 - [ ] **Use** Add flag to just check if all modules in main.tf are represented in yaml file.
 But do it anyways
-- [ ] **Use** Add csv file with all the existing resources ([csv example](./example/modules.csv))
-- [ ] **Cod** Generate `.tfvars` with raw variables
 - [ ] **Research** Import blocks
 
 ### Extra
