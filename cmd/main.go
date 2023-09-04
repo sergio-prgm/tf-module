@@ -26,20 +26,22 @@ type F struct {
 
 type parsedTf struct {
 	providers []string
-	modules   []string
+	resources []string
 }
 
+// readTf reads the contents of the *tf* files produced by aztfexport and
+// returns a struct with the providers and resources in it
 func readTf(raw []byte) parsedTf {
 	file := string(raw[:])
 	fileLines := strings.Split(file, "\n")
 
 	isProv := false
-	isModule := false
+	isResource := false
 	isBlock := false
 	isDependsOn := false
 
 	var rawProv []string
-	var rawModules []string
+	var rawResource []string
 
 	var currentBlock string
 
@@ -51,7 +53,7 @@ func readTf(raw []byte) parsedTf {
 
 			if firstWord == "resource" {
 				// fmt.Print("\nStart of resource\n")
-				isModule = true
+				isResource = true
 				isBlock = true
 			} else if firstWord == "terraform" || firstWord == "provider" {
 				// fmt.Print("\nStart of provider/tf\n")
@@ -63,10 +65,10 @@ func readTf(raw []byte) parsedTf {
 			}
 		}
 		if fileLines[i] == "}" && isBlock {
-			if isModule {
+			if isResource {
 				currentBlock += fileLines[i]
-				rawModules = append(rawModules, currentBlock)
-				isModule = false
+				rawResource = append(rawResource, currentBlock)
+				isResource = false
 				isBlock = false
 				currentBlock = ""
 			} else if isProv {
@@ -97,12 +99,76 @@ func readTf(raw []byte) parsedTf {
 
 	}
 	return parsedTf{
-		modules:   rawModules,
+		resources: rawResource,
 		providers: rawProv,
 	}
 }
 
-func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
+// createMainFiles creates all the files that are general to the
+// terraform project and not iniside of the "modules" folder, i.e.:
+// main.tf, tf.vars, variables.tf
+func createMainFiles(mainContent string, varsContent string, tfvarsContent string) error {
+	err := os.WriteFile("./output/main.tf",
+		[]byte(mainContent),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating main.tf:\n%v", err)
+	}
+
+	err = os.WriteFile("./output/terraform.tfvars",
+		[]byte(tfvarsContent),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating terraform.tfvars:\n%v", err)
+	}
+
+	err = os.WriteFile("./output/variables.tf",
+		[]byte(varsContent),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating variables.tf:\n%v", err)
+	}
+
+	fmt.Print("\noutput/main.tf created...")
+	fmt.Print("\n")
+
+	return nil
+}
+
+func createModuleFiles(filePath string, content string) error {
+	err := os.WriteFile(filePath+"main.tf",
+		[]byte(content),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating %s:\n%v", filePath+"main.tf", err)
+	} else {
+		fmt.Printf("\n%s created...", filePath+"main.tf")
+	}
+
+	_, err = os.Create(filePath + "output.tf")
+	if err != nil {
+		log.Fatalf("Error creating %s:\n%v", filePath+"output.tf", err)
+	} else {
+		fmt.Printf("\n%s created...", filePath+"output.tf")
+	}
+
+	_, err = os.Create(filePath + "variables.tf")
+	if err != nil {
+		log.Fatalf("Error creating %s:\n%v", filePath+"variables.tf", err)
+	} else {
+		fmt.Printf("\n%s created...", filePath+"variables.tf")
+	}
+	fmt.Println()
+	return nil
+}
+
+// createFiles creates the module files containing the resources
+// specified in the yaml config file
+func createFiles(parsedBlocks parsedTf, vars string, configModules F) error {
 	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
 
 	modulesBlocks := ""
@@ -121,61 +187,31 @@ func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
 	}
 
 	mainContent := strings.Join(parsedBlocks.providers, "\n\n") + "\n\n" + modulesBlocks
-
-	err := os.WriteFile("./output/main.tf",
-		[]byte(mainContent),
-		os.ModePerm)
-
-	if err != nil {
-		log.Fatalf("Error creating main.tf:\n%v", err)
-	}
-
-	fmt.Print("\noutput/main.tf created...")
-	fmt.Print("\n")
+	createMainFiles(mainContent, "", "")
 
 	for _, v := range configModules.Modules {
 		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
 		content := ""
-		for _, module := range parsedBlocks.modules {
-			resourceName := strings.Split(module, "\"")[1]
+		for _, resource := range parsedBlocks.resources {
+			resourceName := strings.Split(resource, "\"")[1]
 			if slices.Contains(v.Resources, resourceName) {
 				if content == "" {
-					content = module
+					content = resource
 				} else {
-					content = content + "\n\n" + module
+					content = content + "\n\n" + resource
 				}
 			}
 		}
-		err := os.WriteFile(filePath+"main.tf",
-			[]byte(content),
-			os.ModePerm)
-
-		if err != nil {
-			log.Fatalf("Error creating %s:\n%v", filePath+"main.tf", err)
-		} else {
-			fmt.Printf("\n%s created...", filePath+"main.tf")
-		}
-
-		_, err = os.Create(filePath + "output.tf")
-		if err != nil {
-			log.Fatalf("Error creating %s:\n%v", filePath+"output.tf", err)
-		} else {
-			fmt.Printf("\n%s created...", filePath+"output.tf")
-		}
-
-		_, err = os.Create(filePath + "variables.tf")
-		if err != nil {
-			log.Fatalf("Error creating %s:\n%v", filePath+"variables.tf", err)
-		} else {
-			fmt.Printf("\n%s created...", filePath+"variables.tf")
-		}
-		fmt.Println()
+		// call createModuleFiles
+		createModuleFiles(filePath, content)
 
 	}
 
 	return nil
 }
 
+// createFolders creates all the necessary folders with the information outlined
+// in the yaml config file
 func createFolders(config F) {
 	fmt.Print(util.EmphasizeStr("\nCreating folders...", util.Green, util.Bold))
 	_, err := os.Stat("output")
@@ -288,13 +324,19 @@ func main() {
 
 	// fmt.Printf("Providers length: %d\n", len(result.providers))
 	// fmt.Printf("Providers: %v\n", result.providers)
-	// fmt.Printf("Modules length: %d\n", len(result.modules))
-	// fmt.Printf("Modules: %v\n", result.modules)
+	// fmt.Printf("Modules length: %d\n", len(parsedBlocks.modules))
+	// fmt.Printf("Modules: %v\n", parsedBlocks.modules)
+	// for _, v := range parsedBlocks.resources {
+	// 	fmt.Printf("Resource:\n%s", v)
+	// }
+	// fmt.Printf("Modules: %v\n", parsedBlocks.resources)
+
 	createFolders(configModules)
-	err = createModuleFiles(parsedBlocks, configModules)
+	err = createFiles(parsedBlocks, "// Automatically generated variables\n// Should be changed", configModules)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	// fmt.Print(util.EmphasizeStr("Emphasize str\n", util.Blue, util.Normal))
 	// fmt.Print(util.EmphasizeStr("Emphasize str\n", util.Blue, util.Bold))
 }
