@@ -169,7 +169,7 @@ func createModuleFiles(filePath string, content string) error {
 
 // createFiles creates the module files containing the resources
 // specified in the yaml config file
-func createFiles(parsedBlocks parsedTf, vars string, configModules F) error {
+func createFiles(parsedBlocks parsedTf, varsContent string, tfvarsContent string, configModules F) error {
 	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
 
 	modulesBlocks := ""
@@ -188,7 +188,7 @@ func createFiles(parsedBlocks parsedTf, vars string, configModules F) error {
 	}
 
 	mainContent := strings.Join(parsedBlocks.providers, "\n\n") + "\n\n" + modulesBlocks
-	createMainFiles(mainContent, "", "")
+	createMainFiles(mainContent, varsContent, tfvarsContent)
 
 	// use in createVars
 	for _, v := range configModules.Modules {
@@ -257,7 +257,7 @@ func createVars(rawResources []string, modules []Modules) map[string][]string {
 			rawResourceName := strings.Split(resource, "\"")[1]
 			resourceName := strings.Replace(rawResourceName, "azurerm_", "", 1) + "s"
 
-			blockContent := strings.Join(resoureceArray[1:len(resoureceArray)-2], "\n")
+			blockContent := strings.Join(resoureceArray[1:len(resoureceArray)-1], "\n")
 
 			if slices.Contains(v.Resources, rawResourceName) {
 				vars[resourceName] = append(vars[resourceName], blockContent)
@@ -358,16 +358,27 @@ func main() {
 	// fmt.Printf("Modules length: %d\n", len(parsedBlocks.modules))
 	// fmt.Printf("Modules: %v\n", parsedBlocks.modules)
 	resourceMap := createVars(parsedBlocks.resources, configModules.Modules)
+	tfvarsContent := "// Automatically generated variables\n// Should be changed\n"
+	varsContent := "// Automatically generated variables\n// Should be changed"
 	for name, resource := range resourceMap {
 		fmt.Printf("\n\nResource %s\n", name)
-		for _, v := range resource {
+		varBlock := ""
+		varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = list(any) }", name)
+		for i, v := range resource {
 			fmt.Println(v)
+			if i == 0 {
+				varBlock = name + " = [\n" + fmt.Sprintf("\t{\n%s\n\t}", strings.ReplaceAll(v, "=", ":"))
+			} else {
+				varBlock = varBlock + fmt.Sprintf(",\n\t{\n%s\n\t}", strings.ReplaceAll(v, "=", ":"))
+
+			}
 		}
+		tfvarsContent += varBlock + "\n]\n\n"
 	}
 	// fmt.Printf("Modules: %v\n", parsedBlocks.resources)
 
 	createFolders(configModules)
-	err = createFiles(parsedBlocks, "// Automatically generated variables\n// Should be changed", configModules)
+	err = createFiles(parsedBlocks, varsContent, tfvarsContent, configModules)
 	if err != nil {
 		log.Fatal(err)
 	}
