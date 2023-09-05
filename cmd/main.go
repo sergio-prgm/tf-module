@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 
 	"log"
-	"strings"
 
 	"github.com/sergio-prgm/tf-module/pkg/inout"
 	"github.com/sergio-prgm/tf-module/pkg/scf"
@@ -36,19 +36,13 @@ func main() {
 	tfvarsContent := "// Automatically generated variables\n// Should be changed\n"
 	varsContent := "// Automatically generated variables\n// Should be changed"
 	for name, resource := range resourceMap {
-		fmt.Printf("\n\nResource %s\n", name)
-		varBlock := ""
-		varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = list(any) }", name)
-		for i, v := range resource {
-			fmt.Println(v)
-			if i == 0 {
-				varBlock = name + " = [\n" + fmt.Sprintf("\t{\n%s\n\t}", strings.ReplaceAll(v, "=", ":"))
-			} else {
-				varBlock = varBlock + fmt.Sprintf(",\n\t{\n%s\n\t}", strings.ReplaceAll(v, "=", ":"))
-
-			}
+		encodedVar, err := json.MarshalIndent(resource, " ", "  ")
+		if err != nil {
+			fmt.Println(err)
 		}
-		tfvarsContent += varBlock + "\n]\n\n"
+
+		tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
+		varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = list(any) }", name)
 	}
 
 	scf.CreateFolders(configModules)

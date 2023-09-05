@@ -163,9 +163,11 @@ type VarsContents []map[string]interface{}
 
 // CreateVars creates a structured map[resource_name]contents{}
 // to use in tfvars, variables, modules, etc.
-func CreateVars(rawResources []string, modules []Modules) map[string][]string {
+// func CreateVars(rawResources []string, modules []Modules) map[string][]string {
+func CreateVars(rawResources []string, modules []Modules) map[string]VarsContents {
 	// var vars map[string][]map[string]interface{}
-	var vars map[string][]string = make(map[string][]string)
+	// var vars map[string][]string = make(map[string][]string)
+	var vars map[string]VarsContents = make(map[string]VarsContents)
 
 	for _, v := range modules {
 		for _, resource := range rawResources {
@@ -176,7 +178,11 @@ func CreateVars(rawResources []string, modules []Modules) map[string][]string {
 			blockContent := strings.Join(resoureceArray[1:len(resoureceArray)-1], "\n")
 
 			if slices.Contains(v.Resources, rawResourceName) {
-				vars[resourceName] = append(vars[resourceName], blockContent)
+				fmt.Println("\nRaw block content:")
+				fmt.Println(blockContent)
+				newResource := ParseResource(blockContent)
+				// fmt.Printf("\n%v\n", newResource)
+				vars[resourceName] = append(vars[resourceName], newResource)
 			}
 		}
 	}
@@ -186,6 +192,38 @@ func CreateVars(rawResources []string, modules []Modules) map[string][]string {
 // ParseResource converts the contents of a resource block into a map
 func ParseResource(rawResource string) map[string]interface{} {
 	var resource map[string]interface{}
-	json.Unmarshal([]byte(rawResource), &resource)
+	stringArr := strings.Split(rawResource, "\n")
+	quotedString := ""
+	includesInnerBlock := false
+
+	for i, v := range stringArr {
+		splittedStr := strings.Split(strings.TrimSpace(v), " ")
+		if strings.Contains(v, "{") {
+			includesInnerBlock = true
+		}
+		fmt.Println(includesInnerBlock)
+		if splittedStr[0] == "}" {
+			quotedString += "}"
+			continue
+		}
+
+		quotedString += fmt.Sprintf("\"%s\" %s", splittedStr[0], strings.Join(splittedStr[1:], " "))
+		if includesInnerBlock {
+			quotedString += "\n"
+		} else if i != len(stringArr)-1 {
+			quotedString += ",\n"
+		}
+		// if includesInnerBlock {
+		// 	quotedString += "\n"
+		// }
+	}
+
+	fmt.Println(quotedString)
+	jsonedString := "{" + strings.ReplaceAll(quotedString, "=", ":") + "\n}"
+	err := json.Unmarshal([]byte(jsonedString), &resource)
+	if err != nil {
+		fmt.Println("Here", err)
+	}
+
 	return resource
 }
