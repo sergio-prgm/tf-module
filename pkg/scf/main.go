@@ -1,3 +1,5 @@
+// Package scf contains functions whose purpose
+// is the general scaffolding of the project
 package scf
 
 import (

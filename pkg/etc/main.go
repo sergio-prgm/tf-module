@@ -1,3 +1,5 @@
+// Package etc contains functions that don't match
+// any other package (general validation, manipulating config files, etc.)
 package etc
 
 import (
