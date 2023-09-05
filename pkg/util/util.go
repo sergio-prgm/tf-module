@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+// NormalizePath modifies the string given to it to have consistent paths
+// across different OSs
+func NormalizePath(p string) string {
+	return strings.ReplaceAll(p, "\\", "/")
+}
+
 func StartsWith(line, comp string) (bool, error) {
 	if len(line) < len(comp) {
 		return false, errors.New("chars out ouf range")

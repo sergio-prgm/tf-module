@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+
 	// "github.com/sergio-prgm/tf-module/utils"
 	"log"
 	"os"
@@ -25,19 +27,22 @@ type F struct {
 
 type parsedTf struct {
 	providers []string
-	modules   []string
+	resources []string
 }
 
+// readTf reads the contents of the *tf* files produced by aztfexport and
+// returns a struct with the providers and resources in it
 func readTf(raw []byte) parsedTf {
 	file := string(raw[:])
 	fileLines := strings.Split(file, "\n")
 
 	isProv := false
-	isModule := false
+	isResource := false
 	isBlock := false
+	isDependsOn := false
 
 	var rawProv []string
-	var rawModules []string
+	var rawResource []string
 
 	var currentBlock string
 
@@ -49,7 +54,7 @@ func readTf(raw []byte) parsedTf {
 
 			if firstWord == "resource" {
 				// fmt.Print("\nStart of resource\n")
-				isModule = true
+				isResource = true
 				isBlock = true
 			} else if firstWord == "terraform" || firstWord == "provider" {
 				// fmt.Print("\nStart of provider/tf\n")
@@ -61,10 +66,10 @@ func readTf(raw []byte) parsedTf {
 			}
 		}
 		if fileLines[i] == "}" && isBlock {
-			if isModule {
+			if isResource {
 				currentBlock += fileLines[i]
-				rawModules = append(rawModules, currentBlock)
-				isModule = false
+				rawResource = append(rawResource, currentBlock)
+				isResource = false
 				isBlock = false
 				currentBlock = ""
 			} else if isProv {
@@ -76,16 +81,95 @@ func readTf(raw []byte) parsedTf {
 			}
 		}
 		if isBlock {
-			currentBlock += fileLines[i] + "\n"
+			if !isDependsOn {
+				// if util.FirstWordIs(fileLines[i])
+				firstWordInside := strings.Split(strings.TrimSpace(fileLines[i]), " ")[0]
+
+				if firstWordInside == "depends_on" {
+					isDependsOn = true
+				} else {
+					currentBlock += fileLines[i] + "\n"
+				}
+			} else {
+				firstWordInside := strings.Split(strings.TrimSpace(fileLines[i]), " ")[0]
+				if firstWordInside == "]" {
+					isDependsOn = false
+				}
+			}
 		}
+
 	}
 	return parsedTf{
-		modules:   rawModules,
+		resources: rawResource,
 		providers: rawProv,
 	}
 }
 
-func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
+// createMainFiles creates all the files that are general to the
+// terraform project and not iniside of the "modules" folder, i.e.:
+// main.tf, tf.vars, variables.tf
+func createMainFiles(mainContent string, varsContent string, tfvarsContent string) error {
+	err := os.WriteFile("./output/main.tf",
+		[]byte(mainContent),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating main.tf:\n%v", err)
+	}
+
+	err = os.WriteFile("./output/terraform.tfvars",
+		[]byte(tfvarsContent),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating terraform.tfvars:\n%v", err)
+	}
+
+	err = os.WriteFile("./output/variables.tf",
+		[]byte(varsContent),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating variables.tf:\n%v", err)
+	}
+
+	fmt.Print("\noutput/main.tf created...")
+	fmt.Print("\n")
+
+	return nil
+}
+
+func createModuleFiles(filePath string, content string) error {
+	err := os.WriteFile(filePath+"main.tf",
+		[]byte(content),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating %s:\n%v", filePath+"main.tf", err)
+	} else {
+		fmt.Printf("\n%s created...", filePath+"main.tf")
+	}
+
+	_, err = os.Create(filePath + "output.tf")
+	if err != nil {
+		log.Fatalf("Error creating %s:\n%v", filePath+"output.tf", err)
+	} else {
+		fmt.Printf("\n%s created...", filePath+"output.tf")
+	}
+
+	_, err = os.Create(filePath + "variables.tf")
+	if err != nil {
+		log.Fatalf("Error creating %s:\n%v", filePath+"variables.tf", err)
+	} else {
+		fmt.Printf("\n%s created...", filePath+"variables.tf")
+	}
+	fmt.Println()
+	return nil
+}
+
+// createFiles creates the module files containing the resources
+// specified in the yaml config file
+func createFiles(parsedBlocks parsedTf, varsContent string, tfvarsContent string, configModules F) error {
 	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
 
 	modulesBlocks := ""
@@ -93,7 +177,7 @@ func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
 	for i, v := range configModules.Modules {
 
 		modulesBlocks += fmt.Sprintf(
-			"module \"%s\" {\n\tresource = \"./Modules/%s\"\n}\n",
+			"module \"%s\" {\n\tsource = \"./Modules/%s\"\n}\n",
 			v.Name,
 			v.Name,
 		)
@@ -104,61 +188,30 @@ func createModuleFiles(parsedBlocks parsedTf, configModules F) error {
 	}
 
 	mainContent := strings.Join(parsedBlocks.providers, "\n\n") + "\n\n" + modulesBlocks
+	createMainFiles(mainContent, varsContent, tfvarsContent)
 
-	err := os.WriteFile("./output/main.tf",
-		[]byte(mainContent),
-		os.ModePerm)
-
-	if err != nil {
-		log.Fatalf("Error creating main.tf:\n%v", err)
-	}
-
-	fmt.Print("\noutput/main.tf created...")
-	fmt.Print("\n")
-
+	// use in createVars
 	for _, v := range configModules.Modules {
 		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
 		content := ""
-		for _, module := range parsedBlocks.modules {
-			resourceName := strings.Split(module, "\"")[1]
+		for _, resource := range parsedBlocks.resources {
+			resourceName := strings.Split(resource, "\"")[1]
 			if slices.Contains(v.Resources, resourceName) {
 				if content == "" {
-					content = module
+					content = resource
 				} else {
-					content = content + "\n\n" + module
+					content = content + "\n\n" + resource
 				}
 			}
 		}
-		err := os.WriteFile(filePath+"main.tf",
-			[]byte(content),
-			os.ModePerm)
-
-		if err != nil {
-			log.Fatalf("Error creating %s:\n%v", filePath+"main.tf", err)
-		} else {
-			fmt.Printf("\n%s created...", filePath+"main.tf")
-		}
-
-		_, err = os.Create(filePath + "output.tf")
-		if err != nil {
-			log.Fatalf("Error creating %s:\n%v", filePath+"output.tf", err)
-		} else {
-			fmt.Printf("\n%s created...", filePath+"output.tf")
-		}
-
-		_, err = os.Create(filePath + "variables.tf")
-		if err != nil {
-			log.Fatalf("Error creating %s:\n%v", filePath+"variables.tf", err)
-		} else {
-			fmt.Printf("\n%s created...", filePath+"variables.tf")
-		}
-		fmt.Println()
-
+		// call createModuleFiles
+		createModuleFiles(filePath, content)
 	}
-
 	return nil
 }
 
+// createFolders creates all the necessary folders with the information outlined
+// in the yaml config file
 func createFolders(config F) {
 	fmt.Print(util.EmphasizeStr("\nCreating folders...", util.Green, util.Bold))
 	_, err := os.Stat("output")
@@ -190,6 +243,37 @@ func createFolders(config F) {
 	fmt.Print("\n")
 }
 
+type VarsContents []map[string]interface{}
+
+// createVars creates a structured map[resource_name]contents{}
+// to use in tfvars, variables, modules, etc.
+func createVars(rawResources []string, modules []Modules) map[string][]string {
+	// var vars map[string][]map[string]interface{}
+	var vars map[string][]string = make(map[string][]string)
+
+	for _, v := range modules {
+		for _, resource := range rawResources {
+			resoureceArray := strings.Split(resource, "\n")
+			rawResourceName := strings.Split(resource, "\"")[1]
+			resourceName := strings.Replace(rawResourceName, "azurerm_", "", 1) + "s"
+
+			blockContent := strings.Join(resoureceArray[1:len(resoureceArray)-1], "\n")
+
+			if slices.Contains(v.Resources, rawResourceName) {
+				vars[resourceName] = append(vars[resourceName], blockContent)
+			}
+		}
+	}
+	return vars
+}
+
+// parseResource converts the contents of a resource block into a map
+func parseResource(rawResource string) map[string]interface{} {
+	var resource map[string]interface{}
+	json.Unmarshal([]byte(rawResource), &resource)
+	return resource
+}
+
 // validateModules checks whether the information in the config file matches the
 // contents of the main.tf and prompts the user the information
 func validateModules(configFile F, parsedFile parsedTf) bool {
@@ -204,22 +288,23 @@ func updateConfig() error {
 
 func main() {
 
-	src := flag.String("src", "./", "The folder or path where the aztfexport files are located")
-	cref := flag.String("conf", "./", "The folder or path where the yaml config file is located")
+	rsrc := flag.String("src", "./", "The folder or path where the aztfexport files are located")
+	ryml := flag.String("conf", "./", "The folder or path where the yaml config file is located")
 	check := flag.Bool("validate", false, "Validate the contents of the yaml config against the terraform file")
 
 	flag.Parse()
 
+	src := util.NormalizePath(*rsrc)
+	yml := util.NormalizePath(*ryml)
 
-	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading config in %s\n", *cref), util.Yellow, util.Normal))
-	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading terraform code in %s\n", *src), util.Yellow, util.Normal))
+	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading config in %s\n", yml), util.Yellow, util.Normal))
+	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading terraform code in %s\n", src), util.Yellow, util.Normal))
 	if *check {
-		fmt.Print(util.EmphasizeStr(fmt.Sprint("A validation will be performed before creating output files\n"), util.Yellow, util.Normal))
+		fmt.Print(util.EmphasizeStr("A validation will be performed before creating output files\n", util.Yellow, util.Normal))
 	}
 
-	// TODO ask for the source files path in a flag [otherwise default to ./] (yaml & main)
-	tfFile := fmt.Sprintf("%s/main.tf", strings.TrimSuffix(*src, "/"))
-	configFile := fmt.Sprintf("%s/tfmodule.yaml", strings.TrimSuffix(*cref, "/"))
+	tfFile := fmt.Sprintf("%s/main.tf", strings.TrimSuffix(src, "/"))
+	configFile := fmt.Sprintf("%s/tfmodule.yaml", strings.TrimSuffix(yml, "/"))
 	conf, err := os.ReadFile(configFile)
 
 	if err != nil {
@@ -228,7 +313,27 @@ func main() {
 		fmt.Printf("Reading modules from %s\n", util.EmphasizeStr(configFile, util.Yellow, util.Normal))
 	}
 
-	tf, err := os.ReadFile(tfFile)
+	tfFiles, err := os.ReadDir(strings.TrimSuffix(src, "/"))
+	allTf := []byte("")
+
+	// for _, v := range tfFiles {
+	for i := len(tfFiles) - 1; i >= 0; i-- {
+		v := tfFiles[i]
+		if strings.HasSuffix(v.Name(), ".tf") {
+			fmt.Println(v.Name())
+			currentTfFile, err := os.ReadFile(src + v.Name())
+			if err != nil {
+				log.Fatal(err)
+			}
+			allTf = append(allTf, currentTfFile...)
+		}
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// tf, err := os.ReadFile(tfFile)
 
 	if err != nil {
 		log.Fatalf("ERROR: %s doesn't exist", tfFile)
@@ -246,17 +351,38 @@ func main() {
 	for i := 0; i < len(configModules.Modules); i++ {
 		fmt.Printf("\nmodule: %s\nresources: %v\n", configModules.Modules[i].Name, configModules.Modules[i].Resources)
 	}
-	parsedBlocks := readTf(tf)
+	parsedBlocks := readTf(allTf)
 
 	// fmt.Printf("Providers length: %d\n", len(result.providers))
 	// fmt.Printf("Providers: %v\n", result.providers)
-	// fmt.Printf("Modules length: %d\n", len(result.modules))
-	// fmt.Printf("Modules: %v\n", result.modules)
+	// fmt.Printf("Modules length: %d\n", len(parsedBlocks.modules))
+	// fmt.Printf("Modules: %v\n", parsedBlocks.modules)
+	resourceMap := createVars(parsedBlocks.resources, configModules.Modules)
+	tfvarsContent := "// Automatically generated variables\n// Should be changed\n"
+	varsContent := "// Automatically generated variables\n// Should be changed"
+	for name, resource := range resourceMap {
+		fmt.Printf("\n\nResource %s\n", name)
+		varBlock := ""
+		varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = list(any) }", name)
+		for i, v := range resource {
+			fmt.Println(v)
+			if i == 0 {
+				varBlock = name + " = [\n" + fmt.Sprintf("\t{\n%s\n\t}", strings.ReplaceAll(v, "=", ":"))
+			} else {
+				varBlock = varBlock + fmt.Sprintf(",\n\t{\n%s\n\t}", strings.ReplaceAll(v, "=", ":"))
+
+			}
+		}
+		tfvarsContent += varBlock + "\n]\n\n"
+	}
+	// fmt.Printf("Modules: %v\n", parsedBlocks.resources)
+
 	createFolders(configModules)
-	err = createModuleFiles(parsedBlocks, configModules)
+	err = createFiles(parsedBlocks, varsContent, tfvarsContent, configModules)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	// fmt.Print(util.EmphasizeStr("Emphasize str\n", util.Blue, util.Normal))
 	// fmt.Print(util.EmphasizeStr("Emphasize str\n", util.Blue, util.Bold))
 }
