@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 
@@ -189,6 +190,7 @@ func createFiles(parsedBlocks parsedTf, vars string, configModules F) error {
 	mainContent := strings.Join(parsedBlocks.providers, "\n\n") + "\n\n" + modulesBlocks
 	createMainFiles(mainContent, "", "")
 
+	// use in createVars
 	for _, v := range configModules.Modules {
 		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
 		content := ""
@@ -204,9 +206,7 @@ func createFiles(parsedBlocks parsedTf, vars string, configModules F) error {
 		}
 		// call createModuleFiles
 		createModuleFiles(filePath, content)
-
 	}
-
 	return nil
 }
 
@@ -241,6 +241,37 @@ func createFolders(config F) {
 		}
 	}
 	fmt.Print("\n")
+}
+
+type VarsContents []map[string]interface{}
+
+// createVars creates a structured map[resource_name]contents{}
+// to use in tfvars, variables, modules, etc.
+func createVars(rawResources []string, modules []Modules) map[string][]string {
+	// var vars map[string][]map[string]interface{}
+	var vars map[string][]string = make(map[string][]string)
+
+	for _, v := range modules {
+		for _, resource := range rawResources {
+			resoureceArray := strings.Split(resource, "\n")
+			rawResourceName := strings.Split(resource, "\"")[1]
+			resourceName := strings.Replace(rawResourceName, "azurerm_", "", 1) + "s"
+
+			blockContent := strings.Join(resoureceArray[1:len(resoureceArray)-2], "\n")
+
+			if slices.Contains(v.Resources, rawResourceName) {
+				vars[resourceName] = append(vars[resourceName], blockContent)
+			}
+		}
+	}
+	return vars
+}
+
+// parseResource converts the contents of a resource block into a map
+func parseResource(rawResource string) map[string]interface{} {
+	var resource map[string]interface{}
+	json.Unmarshal([]byte(rawResource), &resource)
+	return resource
 }
 
 // validateModules checks whether the information in the config file matches the
@@ -326,9 +357,13 @@ func main() {
 	// fmt.Printf("Providers: %v\n", result.providers)
 	// fmt.Printf("Modules length: %d\n", len(parsedBlocks.modules))
 	// fmt.Printf("Modules: %v\n", parsedBlocks.modules)
-	// for _, v := range parsedBlocks.resources {
-	// 	fmt.Printf("Resource:\n%s", v)
-	// }
+	resourceMap := createVars(parsedBlocks.resources, configModules.Modules)
+	for name, resource := range resourceMap {
+		fmt.Printf("\n\nResource %s\n", name)
+		for _, v := range resource {
+			fmt.Println(v)
+		}
+	}
 	// fmt.Printf("Modules: %v\n", parsedBlocks.resources)
 
 	createFolders(configModules)
