@@ -15,7 +15,7 @@ import (
 
 // createMainFiles creates all the files that are general to the
 // terraform project and not iniside of the "modules" folder, i.e.:
-// main.tf, tf.vars, variables.tf
+// main.tf, terraform.tfvars, variables.tf
 func CreateMainFiles(mainContent string, varsContent string, tfvarsContent string) error {
 	err := os.WriteFile("./output/main.tf",
 		[]byte(mainContent),
@@ -85,11 +85,17 @@ func CreateFiles(parsedBlocks inout.ParsedTf, varsContent string, tfvarsContent 
 	modulesBlocks := ""
 
 	for i, v := range configModules.Modules {
+		resourceCall := ""
+		for _, r := range v.Resources {
+			cleanResource := strings.Replace(r, "azurerm_", "", 1) + "s"
+			resourceCall += fmt.Sprintf("\t%s = var.%s\n", cleanResource, cleanResource)
+		}
 
 		modulesBlocks += fmt.Sprintf(
-			"module \"%s\" {\n\tsource = \"./Modules/%s\"\n}\n",
+			"module \"%s\" {\n\tsource = \"./Modules/%s\"\n%s}\n",
 			v.Name,
 			v.Name,
+			resourceCall,
 		)
 
 		if i != len(configModules.Modules)-1 {
