@@ -38,7 +38,7 @@ go build ./cmd/main.go && ./main -daily
 
 ```sh
 go build -o ./main ./cmd/main.go && ./main -conf ./example/ -src ./de-pr-08-30/
-go build -o .\main.exe .\cmd\main.go && .\main.exe -conf .\example\ -src .\de-pr-08-30\
+go build -o .\main.exe .\cmd\main.go && .\main.exe -conf .\example\ -src .\defender-prueba\
 ```
 
 ### Cross Compile
@@ -66,36 +66,33 @@ GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule ./cmd/main.go
 - [x] Update or delete `depends_on` (it causes problems because it links to an external resource as if it was local)
 - [x] Change `resource` to `source` in main.tf module declarations
 - [x] Put them into the correct modules
-- [ ] **Cod** **1** Implement `for_each` in repeated resources
+- [x] **Cod** Generate `.tfvars` with raw variables
+- [x] **Cod** Generate `variables.tf`
+
+- [x] **Cod** If an attribute is found in one but not the other, create it with `null` value
+  - [ ] **Cod** Use `map(any)` instead of `list(any)`
+- [ ] **Cod** **1** Implement `for_each` in repeated resources (checkout [reference folder](./output_ref/) for reference)
 (priority because this affects imports and code structure)
+- [ ] **cod** Use variables in module calls
 - [ ] **Dev** **Use** Implement auto release in CI
 - [ ] **Use** Add csv file with all the existing resources ([csv example](./example/modules.csv))
-- [ ] **Cod** Generate `.tfvars` with raw variables
 - [ ] **Use** Research a way to make #2 easy/straightforward.
 - [ ] **Dev** Improve readibility of code :)
 - [ ] **Use** Add flag to just check if all modules in main.tf are represented in yaml file.
 But do it anyways
-- [ ] **Research** Import blocks
+- [ ] **Cod** Scaffold empty project from yaml file.
+
+### Research
+
+- [x] **Use** Import blocks
+  - We have to make a block for each resource, not programmatically
+  - They can only be located in the root module (i.e. the where main, tfvars, etc. are located)
+- [ ] **Use** Using terraform commands from program (to format code etc.)
 
 ### Extra
 
 - [ ] **Use** Make output more comprehensible (color, verbose description - add flag for this)
 - [ ] **Cod** Create the yaml file from `csv` resource output
-
-1. Create "output" & "output/modules" folders
-2. Write "main.tf", and the respective module files
-3. Bla
-
-### Create main.tf
-
-1. ~~Write providers (from tfexport file)~~
-2. ~~Write modules (from yaml config file)~~
-3. *Write variables*
-
-### Create modules
-
-1. ~~Write resources (from tfexport file)~~
-2. ~~Create *blank* "variables.tf" and *output.tf*~~
 
 ```plaintext
 output
