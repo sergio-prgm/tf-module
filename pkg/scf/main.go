@@ -85,6 +85,7 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]inout.VarsC
 
 	modulesBlocks := ""
 
+	// CreateMain files
 	for i, v := range configModules.Modules {
 		resourceCall := ""
 		for _, r := range v.Resources {
@@ -119,25 +120,42 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]inout.VarsC
 	}
 
 	CreateMainFiles(mainContent, varsContent, tfvarsContent)
-	// use in createVars
+
+	// CreateModuleFiles
 	for _, v := range configModules.Modules {
 		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
 		variables := ""
 		content := ""
-		for _, resource := range parsedBlocks.Resources {
-			resourceName := strings.Split(resource, "\"")[1]
-			if slices.Contains(v.Resources, resourceName) {
-				newVar := fmt.Sprintf("variable %s { type = list(any) }\n", strings.Replace(resourceName, "azurerm_", "", 1)+"s")
-				if !strings.Contains(variables, newVar) {
-					variables += newVar
+		for resourceName, resource := range resourceMap {
+			cleanResource := resourceName[:len(resourceName)-1]
+			fmt.Println(cleanResource)
+			fmt.Printf("%v", v.Resources)
+			if slices.Contains(v.Resources, "azurerm_"+cleanResource) {
+				content += fmt.Sprintf("resource \"azurerm_%[1]s\" \"res_%[1]s\" {\n", resourceName)
+				content += fmt.Sprintf("\tfor_each = {for k, v in var.%s : k => v}\n", resourceName)
+				for attribute := range resource[0] {
+					content += fmt.Sprintf("\t%[1]s = each.value.%[1]s\n", attribute)
 				}
-				if content == "" {
-					content = resource
-				} else {
-					content = content + "\n\n" + resource
-				}
+				content += "}\n\n"
 			}
 		}
+		/*
+			for _, resource := range parsedBlocks.Resources {
+				resourceName := strings.Split(resource, "\"")[1]
+				if slices.Contains(v.Resources, resourceName) {
+					newVar := fmt.Sprintf("variable %s { type = list(any) }\n", strings.Replace(resourceName, "azurerm_", "", 1)+"s")
+					if !strings.Contains(variables, newVar) {
+						variables += newVar
+					}
+
+					if content == "" {
+						content = resource
+					} else {
+						content = content + "\n\n" + resource
+					}
+				}
+			}
+		*/
 		CreateModuleFiles(filePath, content, variables)
 	}
 	return nil
