@@ -178,8 +178,8 @@ func CreateVars(rawResources []string, modules []Modules) map[string]VarsContent
 			blockContent := strings.Join(resoureceArray[1:len(resoureceArray)-1], "\n")
 
 			if slices.Contains(v.Resources, rawResourceName) {
-				fmt.Println("\nRaw block content:")
-				fmt.Println(blockContent)
+				// fmt.Println("\nRaw block content:")
+				// fmt.Println(blockContent)
 				newResource := ParseResource(blockContent)
 				// fmt.Printf("\n%v\n", newResource)
 				vars[resourceName] = append(vars[resourceName], newResource)
@@ -204,7 +204,7 @@ func ParseResource(rawResource string) map[string]interface{} {
 			}
 			includesInnerBlock = true
 		}
-		fmt.Println(includesInnerBlock)
+		// fmt.Println(includesInnerBlock)
 
 		if splittedStr[0] == "}" {
 			quotedString += "}"
