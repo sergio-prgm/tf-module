@@ -3,6 +3,7 @@
 package scf
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -79,7 +80,7 @@ func CreateModuleFiles(filePath string, content string, variables string) error 
 
 // createFiles creates the module files containing the resources
 // specified in the yaml config file
-func CreateFiles(parsedBlocks inout.ParsedTf, varsContent string, tfvarsContent string, configModules inout.F) error {
+func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]inout.VarsContents, configModules inout.F) error {
 	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
 
 	modulesBlocks := ""
@@ -104,8 +105,20 @@ func CreateFiles(parsedBlocks inout.ParsedTf, varsContent string, tfvarsContent 
 	}
 
 	mainContent := strings.Join(parsedBlocks.Providers, "\n\n") + "\n\n" + modulesBlocks
-	CreateMainFiles(mainContent, varsContent, tfvarsContent)
 
+	tfvarsContent := "// Automatically generated variables\n// Should be changed\n"
+	varsContent := "// Automatically generated variables\n// Should be changed"
+	for name, resource := range resourceMap {
+		encodedVar, err := json.MarshalIndent(resource, " ", "  ")
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
+		varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = list(any) }", name)
+	}
+
+	CreateMainFiles(mainContent, varsContent, tfvarsContent)
 	// use in createVars
 	for _, v := range configModules.Modules {
 		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
@@ -125,7 +138,6 @@ func CreateFiles(parsedBlocks inout.ParsedTf, varsContent string, tfvarsContent 
 				}
 			}
 		}
-		// call createModuleFiles
 		CreateModuleFiles(filePath, content, variables)
 	}
 	return nil
