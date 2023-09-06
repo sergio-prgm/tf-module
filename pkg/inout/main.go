@@ -198,21 +198,31 @@ func ParseResource(rawResource string) map[string]interface{} {
 
 	for i, v := range stringArr {
 		splittedStr := strings.Split(strings.TrimSpace(v), " ")
-		if strings.Contains(v, "{") {
+		if slices.Contains(splittedStr, "{") {
+			if !strings.Contains(v, "=") {
+				splittedStr = slices.Insert(splittedStr, 1, "=")
+			}
 			includesInnerBlock = true
 		}
 		fmt.Println(includesInnerBlock)
+
 		if splittedStr[0] == "}" {
 			quotedString += "}"
-			continue
+			includesInnerBlock = false
+		} else {
+			quotedString += fmt.Sprintf("\"%s\" %s", splittedStr[0], strings.Join(splittedStr[1:], " "))
 		}
 
-		quotedString += fmt.Sprintf("\"%s\" %s", splittedStr[0], strings.Join(splittedStr[1:], " "))
 		if includesInnerBlock {
-			quotedString += "\n"
+			if !slices.Contains(splittedStr, "{") && strings.TrimSpace(stringArr[i+1]) != "}" {
+				quotedString += ",\n"
+			} else {
+				quotedString += "\n"
+			}
 		} else if i != len(stringArr)-1 {
 			quotedString += ",\n"
 		}
+
 		// if includesInnerBlock {
 		// 	quotedString += "\n"
 		// }
