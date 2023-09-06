@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 
@@ -33,20 +32,9 @@ func main() {
 	parsedBlocks := inout.ReadTfFiles(src)
 
 	resourceMap := inout.CreateVars(parsedBlocks.Resources, configModules.Modules)
-	tfvarsContent := "// Automatically generated variables\n// Should be changed\n"
-	varsContent := "// Automatically generated variables\n// Should be changed"
-	for name, resource := range resourceMap {
-		encodedVar, err := json.MarshalIndent(resource, " ", "  ")
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
-		varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = list(any) }", name)
-	}
 
 	scf.CreateFolders(configModules)
-	err := scf.CreateFiles(parsedBlocks, varsContent, tfvarsContent, configModules)
+	err := scf.CreateFiles(parsedBlocks, resourceMap, configModules)
 	if err != nil {
 		log.Fatal(err)
 	}
