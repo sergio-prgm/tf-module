@@ -116,7 +116,7 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]inout.VarsC
 		}
 
 		tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
-		varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = list(any) }", name)
+		varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
 	}
 
 	CreateMainFiles(mainContent, varsContent, tfvarsContent)
@@ -128,34 +128,33 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]inout.VarsC
 		content := ""
 		for resourceName, resource := range resourceMap {
 			cleanResource := resourceName[:len(resourceName)-1]
-			fmt.Println(cleanResource)
-			fmt.Printf("%v", v.Resources)
+
 			if slices.Contains(v.Resources, "azurerm_"+cleanResource) {
-				content += fmt.Sprintf("resource \"azurerm_%[1]s\" \"res_%[1]s\" {\n", resourceName)
+				newVar := fmt.Sprintf("variable %s { type = any }\n", strings.Replace(resourceName, "azurerm_", "", 1))
+				if !strings.Contains(variables, newVar) {
+					variables += newVar
+				}
+
+				content += fmt.Sprintf("resource \"azurerm_%s\" \"res_%s\" {\n", cleanResource, resourceName)
 				content += fmt.Sprintf("\tfor_each = {for k, v in var.%s : k => v}\n", resourceName)
-				for attribute := range resource[0] {
-					content += fmt.Sprintf("\t%[1]s = each.value.%[1]s\n", attribute)
+
+				for _, resourceList := range resource {
+					for attribute := range resourceList {
+						// if length == 1 obviar la linea de try
+						// repasar esto porque no tiene buena pinta
+						fmt.Println(attribute)
+						attributeString := fmt.Sprintf("\t%[1]s = each.value.%[1]s\n", attribute)
+						tryString := fmt.Sprintf("\t%[1]s = try(each.value.%[1]s, null)\n", attribute)
+						if !strings.Contains(content, attribute) {
+							content += tryString
+						} else {
+							content = strings.Replace(content, tryString, attributeString, 1)
+						}
+					}
 				}
 				content += "}\n\n"
 			}
 		}
-		/*
-			for _, resource := range parsedBlocks.Resources {
-				resourceName := strings.Split(resource, "\"")[1]
-				if slices.Contains(v.Resources, resourceName) {
-					newVar := fmt.Sprintf("variable %s { type = list(any) }\n", strings.Replace(resourceName, "azurerm_", "", 1)+"s")
-					if !strings.Contains(variables, newVar) {
-						variables += newVar
-					}
-
-					if content == "" {
-						content = resource
-					} else {
-						content = content + "\n\n" + resource
-					}
-				}
-			}
-		*/
 		CreateModuleFiles(filePath, content, variables)
 	}
 	return nil

@@ -71,9 +71,9 @@ GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule ./cmd/main.go
 
 - [x] **Cod** If an attribute is found in one but not the other, create it with `null` value
   - [ ] **Cod** Use `map(any)` instead of `list(any)`
-- [ ] **Cod** **1** Implement `for_each` in repeated resources (checkout [reference folder](./output_ref/) for reference)
+- [x] **Cod** **1** Implement `for_each` in repeated resources (checkout [reference folder](./output_ref/) for reference)
 (priority because this affects imports and code structure)
-- [ ] **cod** Use variables in module calls
+- [x] **cod** Use variables in module calls
 - [ ] **Dev** **Use** Implement auto release in CI
 - [ ] **Use** Add csv file with all the existing resources ([csv example](./example/modules.csv))
 - [ ] **Use** Research a way to make #2 easy/straightforward.
