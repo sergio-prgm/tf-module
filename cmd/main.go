@@ -47,7 +47,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	gen.GenerateImports(resourcesMapping, configModules)
-
+	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
+	inout.GenerateImports(resourcesMapping, configModules)
 }
