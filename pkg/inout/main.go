@@ -6,6 +6,7 @@ package inout
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -236,4 +237,79 @@ func ParseResource(rawResource string) map[string]interface{} {
 	}
 
 	return resource
+}
+
+type Resource struct {
+	ResourceID   string `json:"resource_id"`
+	ResourceType string `json:"resource_type"`
+	ResourceName string `json:"resource_name"`
+}
+
+type Resources map[string]Resource
+
+func JsonParser(fileName string) map[string]Resource {
+
+	fileContent, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		log.Fatalf("Failed reading the file: %s", err)
+	}
+
+	// Parse the JSON content
+	var resources Resources
+	if err := json.Unmarshal(fileContent, &resources); err != nil {
+		log.Fatalf("Error unmarshalling the file content: %s", err)
+	}
+	return resources
+}
+
+func GenerateImports(resources Resources, modules F) string {
+
+	resourceModuleMapping := make(map[string]string)
+	for _, module := range modules.Modules {
+		for _, resourceType := range module.Resources {
+			resourceModuleMapping[resourceType] = module.Name
+		}
+	}
+
+	typeCounter := make(map[string]int)
+
+	var output, otherOutput strings.Builder
+	for _, resource := range resources {
+		index, exists := typeCounter[resource.ResourceType]
+		if !exists {
+			typeCounter[resource.ResourceType] = 1
+		} else {
+			typeCounter[resource.ResourceType] = index + 1
+		}
+
+		moduleName, found := resourceModuleMapping[resource.ResourceType]
+
+		if found {
+			formattedResourceType := fmt.Sprintf("module.%s.%s.res-%s[\"%d\"]", moduleName, resource.ResourceType, resource.ResourceType, index)
+			output.WriteString(fmt.Sprintf("import {\n  to = \"%s\"\n  id = \"%s\"\n}\n\n", formattedResourceType, resource.ResourceID))
+		} else {
+			otherOutput.WriteString(fmt.Sprintf("%s\n", resource.ResourceType))
+		}
+	}
+
+	finalString := output.String()
+
+	fmt.Println("\nUnmapped Resources:")
+	fmt.Println(otherOutput.String())
+
+	// Write to imports.tf
+	err := ioutil.WriteFile("./output/imports.tf", []byte(output.String()), 0644)
+	if err != nil {
+		log.Fatalf("Failed writing to imports.tf: %s", err)
+	}
+
+	// Write to unmapped_resources.txt
+	err = ioutil.WriteFile("./output/unmapped_resources.txt", []byte(otherOutput.String()), 0644)
+	if err != nil {
+		log.Fatalf("Failed writing to unmapped_resources.txt: %s", err)
+	}
+
+	fmt.Println("Data written to files successfully!")
+
+	return finalString
 }
