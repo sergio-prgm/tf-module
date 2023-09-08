@@ -43,7 +43,4 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	inout.GenerateImports(resourcesMapping, configModules)
-
 }
