@@ -4,6 +4,7 @@
 package inout
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -283,10 +284,10 @@ func GenerateImports(resources Resources, modules F) string {
 		}
 
 		moduleName, found := resourceModuleMapping[resource.ResourceType]
-
+		resource_type := strings.Replace(resource.ResourceType, "azurerm", "res", 1)
 		if found {
-			formattedResourceType := fmt.Sprintf("module.%s.%s.res-%s[\"%d\"]", moduleName, resource.ResourceType, resource.ResourceType, index)
-			output.WriteString(fmt.Sprintf("import {\n  to = \"%s\"\n  id = \"%s\"\n}\n\n", formattedResourceType, resource.ResourceID))
+			formattedResourceType := fmt.Sprintf("module.%s.%s.%ss[\"%d\"]", moduleName, resource.ResourceType, resource_type, index)
+			output.WriteString(fmt.Sprintf("import {\n  to = %s\n  id = \"%s\"\n}\n\n", formattedResourceType, resource.ResourceID))
 		} else {
 			otherOutput.WriteString(fmt.Sprintf("%s\n", resource.ResourceType))
 		}
@@ -312,4 +313,111 @@ func GenerateImports(resources Resources, modules F) string {
 	fmt.Println("Data written to files successfully!")
 
 	return finalString
+}
+
+///////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+
+type ModuleResource struct {
+	Module       string
+	ResourceType string
+}
+
+func ParseCSV(filename string) []ModuleResource {
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatalf("Error: csv file does not exist: %s", err)
+	}
+	defer file.Close()
+
+	r := csv.NewReader(file)
+
+	// Read and discard header
+	_, err = r.Read()
+	if err != nil {
+		log.Fatalf("Error reading the csv file: %s", err)
+	}
+
+	rows, err := r.ReadAll()
+	if err != nil {
+		log.Fatalf("Error reading the csv file: %s", err)
+	}
+
+	var resources []ModuleResource
+	for _, row := range rows {
+		if len(row) < 2 {
+			// Skip rows with fewer than 2 fields or handle the error accordingly
+			fmt.Printf("Warning: encountered a row with fewer than 2 fields: %v. Skipping.\n", row)
+			continue
+		}
+		resources = append(resources, ModuleResource{
+			Module:       row[0],
+			ResourceType: row[1],
+		})
+	}
+
+	return resources
+}
+
+func AddResource(resources *[]ModuleResource, item ModuleResource) {
+	// Create a map to check for existing items.
+	existing := make(map[string]bool)
+
+	// Populate the map based on the current items.
+	for _, resource := range *resources {
+		key := resource.Module + "|" + resource.ResourceType
+		existing[key] = true
+	}
+
+	// Check if the item exists.
+	key := item.Module + "|" + item.ResourceType
+	if !existing[key] {
+		*resources = append(*resources, item)
+	}
+}
+
+func GenerateModuleYaml(resourcesMapping Resources, modules_map []ModuleResource) []ModuleResource {
+	var resources []ModuleResource
+	for _, resource := range resourcesMapping {
+		for _, mapped_resource := range modules_map {
+			if resource.ResourceType == mapped_resource.ResourceType {
+				AddResource(&resources, mapped_resource)
+			}
+		}
+	}
+	return resources
+}
+
+func transform(resources []ModuleResource) []Modules {
+	grouped := make(map[string][]string)
+
+	for _, r := range resources {
+		grouped[r.Module] = append(grouped[r.Module], r.ResourceType)
+	}
+
+	var yamlResources []Modules
+	for moduleName, resourceTypes := range grouped {
+		yamlResources = append(yamlResources, Modules{
+			Name:      moduleName,
+			Resources: resourceTypes,
+		})
+	}
+
+	return yamlResources
+}
+
+func WriteYaml(filename string, resources []ModuleResource) {
+	yamlResources := transform(resources)
+
+	data, err := yaml.Marshal(map[string][]Modules{"modules": yamlResources})
+	if err != nil {
+		log.Fatalf("Error writing YAML: %v", err)
+	}
+	configData, err := yaml.Marshal(map[string][]string{
+		"config": {"one", "two"},
+	})
+	data = append(data, configData...)
+	ioutil.WriteFile(filename, data, 0644)
+	fmt.Println("YAML written to tfmodule.yaml")
 }

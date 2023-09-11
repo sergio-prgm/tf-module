@@ -1,0 +1,8 @@
+module,resource_type
+ResourceGroup,azurerm_resource_group
+StorageAccount,azurerm_storage_account
+StorageAccount,azurerm_storage_container
+Network,azurerm_virtual_network
+Network,azurerm_subnet
+Compute,azurerm_backup_policy_vm_workload
+Compute,azurerm_backup_policy_vm

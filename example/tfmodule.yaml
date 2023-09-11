@@ -1,15 +1,11 @@
 modules:
-  - name: ResourceGroup
-    resources:
-      - "azurerm_resource_group"
-  - name: StorageAccount
-    resources:
-      - "azurerm_storage_account"
-      - "azurerm_storage_container"
-  - name: Network
-    resources:
-      - "azurerm_virtual_network"
-      - "azurerm_subnet"
+    - name: ResourceGroup
+      resources:
+        - azurerm_resource_group
+    - name: Compute
+      resources:
+        - azurerm_backup_policy_vm
+        - azurerm_backup_policy_vm_workload
 config:
-  - one
-  - two
+    - one
+    - two

@@ -28,8 +28,13 @@ func main() {
 		fmt.Print(util.EmphasizeStr("A validation will be performed before creating output files\n", util.Yellow, util.Normal))
 	}
 
-	configModules := inout.ReadConfig(yml)
 	parsedBlocks := inout.ReadTfFiles(src)
+	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
+	csv_resources := inout.ParseCSV(yml + "module_map.csv")
+
+	mapped_yaml := inout.GenerateModuleYaml(resourcesMapping, csv_resources)
+	inout.WriteYaml(yml+"tfmodule.yaml", mapped_yaml)
+	configModules := inout.ReadConfig(yml)
 
 	resourceMap := inout.CreateVars(parsedBlocks.Resources, configModules.Modules)
 
@@ -38,6 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
+
 	inout.GenerateImports(resourcesMapping, configModules)
+
 }
