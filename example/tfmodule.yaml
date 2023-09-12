@@ -4,8 +4,23 @@ modules:
         - azurerm_resource_group
     - name: Compute
       resources:
-        - azurerm_backup_policy_vm
-        - azurerm_backup_policy_vm_workload
+        - azurerm_linux_virtual_machine
+    - name: Network
+      resources:
+        - azurerm_network_interface
+        - azurerm_network_interface_security_group_association
+        - azurerm_network_security_group
+        - azurerm_network_security_rule
+        - azurerm_public_ip
+        - azurerm_virtual_network
+        - azurerm_subnet
+    - name: StorageAccount
+      resources:
+        - azurerm_storage_account
+        - azurerm_storage_container
+    - name: Monitor
+      resources:
+        - azurerm_monitor_action_group
 config:
     - one
     - two

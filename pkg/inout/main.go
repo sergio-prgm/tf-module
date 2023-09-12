@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/buger/jsonparser"
 	"github.com/sergio-prgm/tf-module/pkg/util"
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
@@ -191,31 +192,166 @@ func CreateVars(rawResources []string, modules []Modules) map[string]VarsContent
 	return vars
 }
 
-// ParseResource converts the contents of a resource block into a map
+func stringExists(slice []string, str string) bool {
+	for _, v := range slice {
+		if v == str {
+			return true
+		}
+	}
+	return false
+}
 func ParseResource(rawResource string) map[string]interface{} {
+	var resource map[string]interface{}
+	content := ""
+	//separa tudo por linhas
+	stringArr := strings.Split(rawResource, "\n")
+	//percorre linha a linha
+	i := 0
+	last_var := ""
+	v := ""
+	for i < len(stringArr) {
+		v = stringArr[i]
+		//split da linha por espacos
+		splittedStr := strings.Split(strings.TrimSpace(v), " ")
+		//Dentro de um block
+		if slices.Contains(splittedStr, "{") && !slices.Contains(splittedStr, "=") {
+			last_var = splittedStr[0]
+			content += "\"" + splittedStr[0] + "\" = [\n"
+			content += "{\n"
+			i, content = insideBracket(stringArr, i, content)
+			still_first_string := true
+			i += 1
+			for still_first_string && i < len(stringArr) {
+				v = stringArr[i]
+				splittedStr := strings.Split(strings.TrimSpace(v), " ")
+				// ainda dentro do bloco
+				if last_var == splittedStr[0] {
+					content += "\n{\n"
+					i, content = insideBracket(stringArr, i, content)
+					i++
+				} else {
+					if content[len(content)-1] == ',' {
+						content = content[:len(content)-1]
+						content += "\n"
+					}
+					content += "],\n"
+					still_first_string = false
+					i--
+				}
+			}
+		} else if slices.Contains(splittedStr, "{") {
+			content += "\"" + splittedStr[0] + "\" = {\n"
+			i, content = insideBracket(stringArr, i, content)
+		} else {
+			v = stringArr[i]
+			splittedStr := strings.Split(strings.TrimSpace(v), " ")
+			content += fmt.Sprintf("\"%s\" %s", splittedStr[0], strings.Join(splittedStr[1:], " "))
+			content += ",\n"
+		}
+		i++
+	}
+
+	if countChar(content, '[') != countChar(content, ']') {
+		content = content[:len(content)-1]
+		content += "\n],\n"
+	}
+	if content[len(content)-1] == '\n' {
+		content = content[:len(content)-1]
+	}
+	if content[len(content)-1] == ',' {
+		content = content[:len(content)-1]
+		content += "\n"
+	}
+
+	jsonedString := "{" + strings.ReplaceAll(content, "=", ":") + "\n}"
+	fmt.Println(jsonedString)
+	err := json.Unmarshal([]byte(jsonedString), &resource)
+	if err != nil {
+		fmt.Println("Here", err)
+	}
+
+	return resource
+}
+
+func countChar(s string, char rune) int {
+	count := 0
+	for _, c := range s {
+		if c == char {
+			count++
+		}
+	}
+	return count
+}
+
+func insideBracket(stringArr []string, i int, content string) (int, string) {
+	bracket_count := 1
+	for bracket_count > 0 {
+		i++
+		v := stringArr[i]
+		splittedStr := strings.Split(strings.TrimSpace(v), " ")
+		if slices.Contains(splittedStr, "{") {
+			content += "\"" + splittedStr[0] + "\" : {\n"
+			bracket_count += 1
+		} else if slices.Contains(splittedStr, "}") {
+			//falta retirar ultima virgula
+			if content[len(content)-1] == ',' {
+				content = content[:len(content)-1]
+				content += "\n"
+			}
+			content += "},"
+			bracket_count -= 1
+		} else {
+			content += "\n"
+			content += fmt.Sprintf("\"%s\" %s", splittedStr[0], strings.Join(splittedStr[1:], " "))
+			content += ","
+		}
+	}
+	return i, content
+}
+
+// ParseResource converts the contents of a resource block into a map
+func ParseResource2(rawResource string) map[string]interface{} {
+	fmt.Println("-------------------")
+	fmt.Println(rawResource)
+	fmt.Println("-------------------")
+	var keys_array []string
 	var resource map[string]interface{}
 	stringArr := strings.Split(rawResource, "\n")
 	quotedString := ""
-	includesInnerBlock := false
+	includesInnerBlock := 0
+	inner_block_first := false
 
 	for i, v := range stringArr {
 		splittedStr := strings.Split(strings.TrimSpace(v), " ")
 		if slices.Contains(splittedStr, "{") {
+			inner_block_first = true
 			if !strings.Contains(v, "=") {
 				splittedStr = slices.Insert(splittedStr, 1, "=")
 			}
-			includesInnerBlock = true
+			if stringExists(keys_array, splittedStr[0]) {
+				inner_block_first = false
+			} else {
+				quotedString += "\"" + splittedStr[0] + "\" = [\n"
+				keys_array = append(keys_array, splittedStr[0])
+			}
+
+			includesInnerBlock += 1
 		}
 		// fmt.Println(includesInnerBlock)
-
 		if splittedStr[0] == "}" {
 			quotedString += "}"
-			includesInnerBlock = false
+			includesInnerBlock -= 1
 		} else {
-			quotedString += fmt.Sprintf("\"%s\" %s", splittedStr[0], strings.Join(splittedStr[1:], " "))
+			if len(keys_array) == 0 {
+				quotedString += fmt.Sprintf("\"%s\" %s", splittedStr[0], strings.Join(splittedStr[1:], " "))
+			}
+		}
+		if inner_block_first && includesInnerBlock == 0 && len(keys_array) > 0 {
+			quotedString += "]\n"
+			keys_array = []string{}
 		}
 
-		if includesInnerBlock {
+		if includesInnerBlock != 0 {
 			if !slices.Contains(splittedStr, "{") && strings.TrimSpace(stringArr[i+1]) != "}" {
 				quotedString += ",\n"
 			} else {
@@ -246,24 +382,35 @@ type Resource struct {
 	ResourceName string `json:"resource_name"`
 }
 
-type Resources map[string]Resource
-
-func JsonParser(fileName string) map[string]Resource {
-
+func JsonParser(fileName string) []Resource {
 	fileContent, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		log.Fatalf("Failed reading the file: %s", err)
 	}
 
-	// Parse the JSON content
-	var resources Resources
-	if err := json.Unmarshal(fileContent, &resources); err != nil {
-		log.Fatalf("Error unmarshalling the file content: %s", err)
-	}
+	var resources []Resource
+
+	jsonparser.ObjectEach(fileContent, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+		var res Resource
+		jsonparser.ObjectEach(value, func(innerKey []byte, innerValue []byte, innerDataType jsonparser.ValueType, innerOffset int) error {
+			switch strings.ToLower(string(innerKey)) {
+			case "resource_id":
+				res.ResourceID = string(innerValue)
+			case "resource_type":
+				res.ResourceType = string(innerValue)
+			case "resource_name":
+				res.ResourceName = string(innerValue)
+			}
+			return nil
+		})
+		resources = append(resources, res)
+		return nil
+	})
+
 	return resources
 }
 
-func GenerateImports(resources Resources, modules F) string {
+func GenerateImports(resources []Resource, modules F) string {
 
 	resourceModuleMapping := make(map[string]string)
 	for _, module := range modules.Modules {
@@ -377,7 +524,7 @@ func AddResource(resources *[]ModuleResource, item ModuleResource) {
 	}
 }
 
-func GenerateModuleYaml(resourcesMapping Resources, modules_map []ModuleResource) []ModuleResource {
+func GenerateModuleYaml(resourcesMapping []Resource, modules_map []ModuleResource) []ModuleResource {
 	var resources []ModuleResource
 	for _, resource := range resourcesMapping {
 		for _, mapped_resource := range modules_map {
