@@ -81,6 +81,7 @@ func CreateModuleFiles(filePath string, content string, variables string) error 
 // createFiles creates the module files containing the resources
 // specified in the yaml config file
 func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]inout.VarsContents, configModules inout.F) error {
+	var keys_array []string
 	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
 
 	modulesBlocks := ""
@@ -137,20 +138,85 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]inout.VarsC
 
 				content += fmt.Sprintf("resource \"azurerm_%s\" \"res_%s\" {\n", cleanResource, resourceName)
 				content += fmt.Sprintf("\tfor_each = {for k, v in var.%s : k => v}\n", resourceName)
-
+				block_content := ""
+				keys_array = []string{}
+				blockContents := make(map[string]string)
 				for _, resourceList := range resource {
-					for attribute := range resourceList {
-						// if length == 1 obviar la linea de try
-						// repasar esto porque no tiene buena pinta
-						fmt.Println(attribute)
-						attributeString := fmt.Sprintf("\t%[1]s = each.value.%[1]s\n", attribute)
-						tryString := fmt.Sprintf("\t%[1]s = try(each.value.%[1]s, null)\n", attribute)
-						if !strings.Contains(content, attribute) {
-							content += tryString
-						} else {
-							content = strings.Replace(content, tryString, attributeString, 1)
+					for key, value := range resourceList {
+						switch v := value.(type) {
+						//////////////ter que alterar aqui
+						/////////////
+						/////////////
+						/*
+							case map[string]interface{}:
+								if key != "tags" {
+									for innerKey := range v {
+										line := fmt.Sprintf("\t\t\t%s = try(each.value.%s[\"%s\"], null)\n", innerKey, key, innerKey)
+										appendToBlock(blockContents, key, innerKey, line)
+									}
+								} else {
+									attributeString := fmt.Sprintf("\t%s = each.value.%s\n", key, key)
+									tryString := fmt.Sprintf("\t%s = try(each.value.%s, null)\n", key, key)
+									if !stringExists(keys_array, key) {
+										keys_array = append(keys_array, key)
+										block_content += tryString
+									} else {
+										block_content = strings.Replace(block_content, tryString, attributeString, 1)
+									}
+								}
+						*/
+						case []interface{}:
+							for _, second_val := range v {
+								if innerMap, ok := second_val.(map[string]interface{}); ok {
+									if key != "tags" {
+										for innerKey := range innerMap {
+											line := fmt.Sprintf("\t\t\t%s = try(%s.value[\"%s\"], null)\n", innerKey, key, innerKey)
+											appendToBlock(blockContents, key, innerKey, line)
+										}
+									} else {
+										attributeString := fmt.Sprintf("\t%s = each.value.%s\n", key, key)
+										tryString := fmt.Sprintf("\t%s = try(each.value.%s, null)\n", key, key)
+										if !stringExists(keys_array, key) {
+											keys_array = append(keys_array, key)
+											block_content += tryString
+										} else {
+											block_content = strings.Replace(block_content, tryString, attributeString, 1)
+										}
+									}
+								} else {
+									attributeString := fmt.Sprintf("\t%s = each.value.%s\n", key, key)
+									tryString := fmt.Sprintf("\t%s = try(each.value.%s, null)\n", key, key)
+									if !stringExists(keys_array, key) {
+										keys_array = append(keys_array, key)
+										block_content += tryString
+									} else {
+										block_content = strings.Replace(block_content, tryString, attributeString, 1)
+									}
+								}
+							}
+						default:
+							attributeString := fmt.Sprintf("\t%s = each.value.%s\n", key, key)
+							tryString := fmt.Sprintf("\t%s = try(each.value.%s, null)\n", key, key)
+							if !stringExists(keys_array, key) {
+								keys_array = append(keys_array, key)
+								block_content += tryString
+							} else {
+								block_content = strings.Replace(block_content, tryString, attributeString, 1)
+							}
 						}
 					}
+				}
+				content += block_content
+				combinedBlockContents := make(map[string]string)
+				for fullKey, line := range blockContents {
+					blockKey := strings.Split(fullKey, "-")[0]
+					combinedBlockContents[blockKey] += line
+				}
+
+				// Now, wrap each block content in its outer structure
+				for blockKey, blockContent := range combinedBlockContents {
+					fullBlock := fmt.Sprintf("\tdynamic \"%s\" {\n\t\tfor_each = try(each.value.%s, [])\n\t\tcontent {\n%s\t\t}\n\t}\n", blockKey, blockKey, blockContent)
+					content += fullBlock
 				}
 				content += "}\n\n"
 			}
@@ -158,6 +224,22 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]inout.VarsC
 		CreateModuleFiles(filePath, content, variables)
 	}
 	return nil
+}
+
+func stringExists(slice []string, str string) bool {
+	for _, v := range slice {
+		if v == str {
+			return true
+		}
+	}
+	return false
+}
+
+func appendToBlock(blockMap map[string]string, blockKey, innerKey, line string) {
+	fullKey := blockKey + "-" + innerKey // unique key for each inner attribute
+	if _, exists := blockMap[fullKey]; !exists {
+		blockMap[fullKey] = line
+	}
 }
 
 // createFolders creates all the necessary folders with the information outlined
