@@ -144,31 +144,13 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]inout.VarsC
 				for _, resourceList := range resource {
 					for key, value := range resourceList {
 						switch v := value.(type) {
-						//////////////ter que alterar aqui
-						/////////////
-						/////////////
-						/*
-							case map[string]interface{}:
-								if key != "tags" {
-									for innerKey := range v {
-										line := fmt.Sprintf("\t\t\t%s = try(each.value.%s[\"%s\"], null)\n", innerKey, key, innerKey)
-										appendToBlock(blockContents, key, innerKey, line)
-									}
-								} else {
-									attributeString := fmt.Sprintf("\t%s = each.value.%s\n", key, key)
-									tryString := fmt.Sprintf("\t%s = try(each.value.%s, null)\n", key, key)
-									if !stringExists(keys_array, key) {
-										keys_array = append(keys_array, key)
-										block_content += tryString
-									} else {
-										block_content = strings.Replace(block_content, tryString, attributeString, 1)
-									}
-								}
-						*/
 						case []interface{}:
 							for _, second_val := range v {
 								if innerMap, ok := second_val.(map[string]interface{}); ok {
 									if key != "tags" {
+										if len(innerMap) == 0 {
+											appendToBlock(blockContents, key, "", "")
+										}
 										for innerKey := range innerMap {
 											line := fmt.Sprintf("\t\t\t%s = try(%s.value[\"%s\"], null)\n", innerKey, key, innerKey)
 											appendToBlock(blockContents, key, innerKey, line)
