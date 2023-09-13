@@ -1,10 +1,4 @@
 modules:
-    - name: Monitor
-      resources:
-        - azurerm_monitor_action_group
-    - name: ResourceGroup
-      resources:
-        - azurerm_resource_group
     - name: Compute
       resources:
         - azurerm_linux_virtual_machine
@@ -17,11 +11,16 @@ modules:
         - azurerm_public_ip
         - azurerm_virtual_network
         - azurerm_subnet
-        - azurerm_network_watcher
     - name: StorageAccount
       resources:
         - azurerm_storage_account
         - azurerm_storage_container
+    - name: Monitor
+      resources:
+        - azurerm_monitor_action_group
+    - name: ResourceGroup
+      resources:
+        - azurerm_resource_group
 config:
     - one
     - two
