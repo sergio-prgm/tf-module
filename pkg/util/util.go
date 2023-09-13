@@ -8,7 +8,11 @@ import (
 // NormalizePath modifies the string given to it to have consistent paths
 // across different OSs
 func NormalizePath(p string) string {
-	return strings.ReplaceAll(p, "\\", "/")
+	path := strings.ReplaceAll(p, "\\", "/")
+	if path[len(path)-1] != '/' {
+		path += "/"
+	}
+	return path
 }
 
 func StartsWith(line, comp string) (bool, error) {
