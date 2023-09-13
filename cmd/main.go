@@ -6,6 +6,7 @@ import (
 
 	"log"
 
+	"github.com/sergio-prgm/tf-module/pkg/gen"
 	"github.com/sergio-prgm/tf-module/pkg/inout"
 	"github.com/sergio-prgm/tf-module/pkg/scf"
 	"github.com/sergio-prgm/tf-module/pkg/util"
@@ -30,17 +31,23 @@ func main() {
 
 	parsedBlocks := inout.ReadTfFiles(src)
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
-	csv_resources := inout.ParseCSV(yml + "module_map.csv")
+	/*
+		csv_resources := inout.ParseCSV(yml + "module_map.csv")
 
-	mapped_yaml := inout.GenerateModuleYaml(resourcesMapping, csv_resources)
-	inout.WriteYaml(yml+"tfmodule.yaml", mapped_yaml)
+		mapped_yaml := gen.GenerateModuleYaml(resourcesMapping, csv_resources)
+
+		inout.WriteYaml(yml+"tfmodule.yaml", mapped_yaml)
+	*/
 	configModules := inout.ReadConfig(yml)
 
-	resourceMap := inout.CreateVars(parsedBlocks.Resources, configModules.Modules)
+	resourceMap := gen.CreateVars(parsedBlocks.Resources, configModules.Modules)
 
 	scf.CreateFolders(configModules)
 	err := scf.CreateFiles(parsedBlocks, resourceMap, configModules)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	gen.GenerateImports(resourcesMapping, configModules)
+
 }
