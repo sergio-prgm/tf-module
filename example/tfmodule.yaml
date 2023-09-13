@@ -1,4 +1,7 @@
 modules:
+    - name: ResourceGroup
+      resources:
+        - azurerm_resource_group
     - name: Compute
       resources:
         - azurerm_linux_virtual_machine
@@ -18,9 +21,6 @@ modules:
     - name: Monitor
       resources:
         - azurerm_monitor_action_group
-    - name: ResourceGroup
-      resources:
-        - azurerm_resource_group
 config:
     - one
     - two

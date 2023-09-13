@@ -1,4 +1,0 @@
-resource-type,resource-group,is-config,is-infra
-azurerm_virtual_network,defender-prueba,yes,yes
-azurerm_monitor_metric_alert,defender-prueba,no,yes -> Existe en infra pero no en config, por lo tanto no se creará el módulo etc.
-azurerm_storage_blob,,yes,no -> Existe en config, pero no en infra, por lo tanto no se creará el módulo 
