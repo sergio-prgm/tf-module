@@ -26,8 +26,8 @@ jobs:
     - name: Show ref_name
       run: echo ${{ github.ref_name }}
 
-    - name: Build Linux
-      run: go build -o ./bin/linux/tfmodule_linux ./...
+    # - name: Build Linux
+    #   run: go build -o ./bin/linux/tfmodule_linux ./...
       
     - name: Build Windows
       run: GOOS=windows GOARCH=amd64 go build -o ./bin/win/tfmodule_win.exe ./...
@@ -45,6 +45,10 @@ jobs:
       uses: softprops/action-gh-release@v1
       # if: startsWith(github.ref, 'refs/tags/')
       with:
+        #files: |
+          #./bin/mac/tfmodule_${{github.ref_name}}_mac
+          #./bin/win/tfmodule_${{github.ref_name}}_win.exe
+          #./bin/linux/tfmodule_${{github.ref_name}}_linux
         files: |
           ./bin/mac/tfmodule_${{github.ref_name}}_mac
           ./bin/win/tfmodule_${{github.ref_name}}_win.exe
