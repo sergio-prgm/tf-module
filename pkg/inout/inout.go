@@ -49,6 +49,13 @@ type CsvResources struct {
 	Quantity int    `json:"Quantity"`
 }
 
+type BlockInnerKey struct {
+	MainKey        string `json:"MainKey"`
+	InnerKey       string `json:"InnerKey"`
+	SecondInnerKey string `json:"SecondInnerKey"`
+	Line string `json:"Line"`
+}
+
 // ReadConfig creates a structured YamlMapping
 // to use in tfvars, variables, modules, etc.
 func ReadConfig(fileName string) YamlMapping {
@@ -366,7 +373,6 @@ func ReadMultipleResourceGroups(src string, newFolder string) (string, string) {
 	}
 	json = json[:len(json)-2]
 	json = "{\n" + json + "\n}"
-	fmt.Println(json)
 	return json, terra
 }
 
@@ -408,4 +414,33 @@ func copyFile(src, dest string) error {
 		return err
 	}
 	return nil
+}
+
+// WriteToCsv
+// it takes the structure []CsvResources and writes it into the csv filename provided
+func WriteToCsv(resources []CsvResources, filename string) {
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Could not create file: %v", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write the header
+	err = writer.Write([]string{"Resource", "Module", "Quantity"})
+	if err != nil {
+		log.Fatalf("Could not write to CSV: %v", err)
+	}
+
+	// Write the data
+	for _, resource := range resources {
+		err := writer.Write([]string{resource.Resource, resource.Module,
+			fmt.Sprintf("%d", resource.Quantity)})
+		if err != nil {
+			log.Fatalf("Could not write to CSV: %v", err)
+		}
+	}
+	fmt.Println("Writted succefully into the file: " + filename)
 }

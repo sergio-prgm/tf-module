@@ -23,11 +23,15 @@ flag --src with the  path for the folder containing the aztfexportResourceMappin
 
 func init() {
 	rootCmd.AddCommand(checkCmd)
+	checkCmd.PersistentFlags().BoolVar(&rg, "rg", false, "Cambiar (default false)")
 }
 
 func runCheck(cmd *cobra.Command, args []string) {
 	yml := util.NormalizePath(ryml)
 	src := util.NormalizePath(rsrc)
+	if rg {
+		src += "___Combined_Resource_Groups___/"
+	}
 
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
 	configModules := inout.ReadConfig(yml)

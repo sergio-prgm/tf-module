@@ -10,6 +10,7 @@ import (
 var (
 	rsrc string
 	ryml string
+	rg   bool
 )
 
 // In cmd/root.go

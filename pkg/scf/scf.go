@@ -130,6 +130,7 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 // with is respective resources and variables
 func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[string]gen.VarsContents) {
 	var keys_array []string
+	var blockInnerKey []inout.BlockInnerKey
 	for _, v := range configModules.Modules {
 		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
 		variables := ""
@@ -159,9 +160,14 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 										if len(innerMap) == 0 {
 											appendToBlock(blockContents, key, "", "")
 										}
-										for innerKey := range innerMap {
-											line := fmt.Sprintf("\t\t\t%s = try(%s.value[\"%s\"], null)\n", innerKey, key, innerKey)
-											appendToBlock(blockContents, key, innerKey, line)
+										for innerKey, inner_value := range innerMap {
+											//deveria ser aqui o bloco dentro de bloco
+											if second_block, ok := inner_value.(map[string]interface{}); ok {
+												blockInnerKey = addBlockInsideBlock(key, innerKey, second_block, blockInnerKey)
+											} else {
+												line := fmt.Sprintf("\t\t\t%s = try(%s.value[\"%s\"], null)\n", innerKey, key, innerKey)
+												appendToBlock(blockContents, key, innerKey, line)
+											}
 										}
 									} else {
 										keys_array, block_content = addBasicModuleField(keys_array, block_content, key)
@@ -181,9 +187,23 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 					blockKey := strings.Split(fullKey, "-")[0]
 					combinedBlockContents[blockKey] += line
 				}
-
+				visitedBlocks := make(map[string]string)
+				for _, value := range blockInnerKey {
+					visitedBlocks[value.InnerKey+" "+value.MainKey] += value.Line
+				}
 				// Now, wrap each block content in its outer structure
 				for blockKey, blockContent := range combinedBlockContents {
+					for key, value := range visitedBlocks {
+						fmt.Println()
+						keys := strings.Split(key, " ")
+
+						if keys[1] == blockKey {
+							blockContent += fmt.Sprintf("\t\t\tdynamic \"%s\" {\n\t\t\t\tfor_each = try(%s.value[\"%s\"], []) == [] ? [] : [1]\n\t\t\t\tcontent {\n", keys[0], blockKey, keys[0])
+							blockContent += value
+							blockContent += "\t\t\t\t}\n\t\t\t}\n"
+						}
+
+					}
 					fullBlock := fmt.Sprintf("\tdynamic \"%s\" {\n\t\tfor_each = try(each.value.%s, [])\n\t\tcontent {\n%s\t\t}\n\t}\n", blockKey, blockKey, blockContent)
 					content += fullBlock
 				}
@@ -192,6 +212,33 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 		}
 		CreateModuleFiles(filePath, content, variables)
 	}
+}
+
+func existsBlockInnerKey(blockInnerKey []inout.BlockInnerKey, mainkey string, key string, innerKey string) bool {
+	for _, block := range blockInnerKey {
+		if block.MainKey == mainkey && block.InnerKey == key && block.SecondInnerKey == innerKey {
+			return true
+		}
+	}
+	return false
+}
+
+func addBlockInsideBlock(mainkey string, key string, second_block map[string]interface{}, blockInnerKey []inout.BlockInnerKey) []inout.BlockInnerKey {
+	content := ""
+	for innerKey := range second_block {
+		line := fmt.Sprintf("\t\t\t\t\t%s = try(%s.value.%s.%s, null)\n", innerKey, mainkey, key, innerKey)
+		content += line
+		if !existsBlockInnerKey(blockInnerKey, mainkey, key, innerKey) {
+			blockInnerKey = append(blockInnerKey, inout.BlockInnerKey{
+				MainKey:        mainkey,
+				InnerKey:       key,
+				SecondInnerKey: innerKey,
+				Line:           line,
+			})
+		}
+	}
+	//block := fmt.Sprintf("\t\t\tdynamic \"%s\" {\n\t\t\t\tfor_each = try(%s.value[\"%s\"], []) == [] ? [] : [1]\n\t\t\t\tcontent {\n%s\t\t\t\t}\n\t\t\t}\n", key, mainkey, key, content)
+	return blockInnerKey
 }
 
 // addBasicModuleField

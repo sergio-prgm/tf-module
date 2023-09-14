@@ -25,11 +25,15 @@ and the --src flag, which should be the path to the folder with the resource gro
 
 func init() {
 	rootCmd.AddCommand(terrafyCmd)
+	terrafyCmd.PersistentFlags().BoolVar(&rg, "rg", false, "Cambiar (default false)")
 }
 
 func runTerrafy(cmd *cobra.Command, args []string) {
 	src := util.NormalizePath(rsrc)
 	yml := util.NormalizePath(ryml)
+	if rg {
+		src += "___Combined_Resource_Groups___/"
+	}
 
 	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading config in %s\n", yml), util.Yellow, util.Normal))
 	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading terraform code in %s\n", src), util.Yellow, util.Normal))
