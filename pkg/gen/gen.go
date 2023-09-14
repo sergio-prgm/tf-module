@@ -262,17 +262,9 @@ func addToStruct(resource string, module string, structure []inout.CsvResources)
 			return structure
 		}
 	}
-	if module == "" {
-		return append(structure, inout.CsvResources{
-			Resource: resource,
-			Module:   module,
-			Quantity: 0,
-		})
-	} else {
-		return append(structure, inout.CsvResources{
-			Resource: resource,
-			Module:   module,
-			Quantity: 1,
-		})
-	}
+	return append(structure, inout.CsvResources{
+		Resource: resource,
+		Module:   module,
+		Quantity: 1,
+	})
 }
