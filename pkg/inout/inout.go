@@ -49,6 +49,13 @@ type CsvResources struct {
 	Quantity int    `json:"Quantity"`
 }
 
+type BlockInnerKey struct {
+	MainKey        string `json:"MainKey"`
+	InnerKey       string `json:"InnerKey"`
+	SecondInnerKey string `json:"SecondInnerKey"`
+	Line string `json:"Line"`
+}
+
 // ReadConfig creates a structured YamlMapping
 // to use in tfvars, variables, modules, etc.
 func ReadConfig(fileName string) YamlMapping {
@@ -366,7 +373,6 @@ func ReadMultipleResourceGroups(src string, newFolder string) (string, string) {
 	}
 	json = json[:len(json)-2]
 	json = "{\n" + json + "\n}"
-	fmt.Println(json)
 	return json, terra
 }
 
