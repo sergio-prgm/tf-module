@@ -41,16 +41,12 @@ jobs:
         name: Go-results
         path: ./bin/
       
-    - name: Release
-      uses: softprops/action-gh-release@v1
+    # - name: Release
+      # uses: softprops/action-gh-release@v1
       # if: startsWith(github.ref, 'refs/tags/')
-      with:
-        #files: |
-          #./bin/mac/tfmodule_${{github.ref_name}}_mac
-          #./bin/win/tfmodule_${{github.ref_name}}_win.exe
-          #./bin/linux/tfmodule_${{github.ref_name}}_linux
-        files: |
-          ./bin/mac/tfmodule_${{github.ref_name}}_mac
-          ./bin/win/tfmodule_${{github.ref_name}}_win.exe
-          ./bin/linux/tfmodule_${{github.ref_name}}_linux
+      # with:
+        # files: |
+          # ./bin/mac/tfmodule_${{github.ref_name}}_mac
+          # ./bin/win/tfmodule_${{github.ref_name}}_win.exe
+          # ./bin/linux/tfmodule_${{github.ref_name}}_linux
     
