@@ -30,10 +30,10 @@ jobs:
     #   run: go build -o ./bin/linux/tfmodule_linux ./...
       
     - name: Build Windows
-      run: GOOS=windows GOARCH=amd64 go build -o ./bin/win/tfmodule_win.exe ./cmd/main.go
+      run: GOOS=windows GOARCH=amd64 go build -o ./bin/win/tfmodule_win.exe ./...
       
     - name: Build MacOS
-      run: GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule_mac ./cmd/main.go
+      run: GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule_mac ./...
       
     - name: Upload Go results
       uses: actions/upload-artifact@v3
