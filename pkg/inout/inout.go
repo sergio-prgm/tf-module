@@ -415,3 +415,32 @@ func copyFile(src, dest string) error {
 	}
 	return nil
 }
+
+// WriteToCsv
+// it takes the structure []CsvResources and writes it into the csv filename provided
+func WriteToCsv(resources []CsvResources, filename string) {
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Could not create file: %v", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write the header
+	err = writer.Write([]string{"Resource", "Module", "Quantity"})
+	if err != nil {
+		log.Fatalf("Could not write to CSV: %v", err)
+	}
+
+	// Write the data
+	for _, resource := range resources {
+		err := writer.Write([]string{resource.Resource, resource.Module,
+			fmt.Sprintf("%d", resource.Quantity)})
+		if err != nil {
+			log.Fatalf("Could not write to CSV: %v", err)
+		}
+	}
+	fmt.Println("Writted succefully into the file: " + filename)
+}
