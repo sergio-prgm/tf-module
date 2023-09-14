@@ -148,6 +148,7 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 				block_content := ""
 				keys_array = []string{}
 				blockContents := make(map[string]string)
+				//meter tudo dentro de uma funcao e torna la recursiva?
 				for _, resourceList := range resource {
 					for key, value := range resourceList {
 						switch v := value.(type) {
@@ -196,13 +197,11 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 // addBasicModuleField
 // adds the basic fields on a resource (e.g name = try(each.value.name, null))
 func addBasicModuleField(keys_array []string, block_content string, key string) ([]string, string) {
-	attributeString := fmt.Sprintf("\t%s = each.value.%s\n", key, key)
+
 	tryString := fmt.Sprintf("\t%s = try(each.value.%s, null)\n", key, key)
 	if !stringExists(keys_array, key) {
 		keys_array = append(keys_array, key)
 		block_content += tryString
-	} else {
-		block_content = strings.Replace(block_content, tryString, attributeString, 1)
 	}
 	return keys_array, block_content
 }
