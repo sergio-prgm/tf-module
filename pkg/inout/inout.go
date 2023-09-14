@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/buger/jsonparser"
@@ -286,12 +287,21 @@ func WriteYaml(filename string, resources []ModuleResource) {
 // WriteToFile
 // It takes the content, the filename path and a success string and writes the content to the file and prints the success string
 func WriteToFile(content string, path string, success string) {
-	err := ioutil.WriteFile(path, []byte(content), 0644)
+	// Open file with flag to create if it doesn't exist, write-only mode, and truncate if it exists
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Fatalf("Failed opening %s: %s", path, err)
+		return
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(content)
 	if err != nil {
 		log.Fatalf("Failed writing to %s: %s", path, err)
-	} else {
-		fmt.Println(success)
+		return
 	}
+
+	fmt.Println(success)
 }
 
 // WriteToCsv
@@ -320,5 +330,82 @@ func WriteToCsv(resources []CsvResources, filename string) {
 			log.Fatalf("Could not write to CSV: %v", err)
 		}
 	}
-	fmt.Println("Writted succefully into the file: " + filename)
+	fmt.Println("Written succefully into the file: " + filename)
+}
+
+func ReadMultipleResourceGroups(src string, newFolder string) (string, string) {
+	json := ""
+	terra := ""
+	firstIteration := true
+
+	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() && path != src {
+			json, terra = processDirectory(path, json, terra)
+			if firstIteration {
+				// Copy provider.tf and terraform.tf files to the new folder on the first iteration
+				if err := copyFile(filepath.Join(path, "provider.tf"), newFolder+"/provider.tf"); err != nil {
+					fmt.Printf("Failed to copy provider.tf from %s to %s: %s\n", path, newFolder, err)
+				}
+				if err := copyFile(filepath.Join(path, "terraform.tf"), newFolder+"/terraform.tf"); err != nil {
+					fmt.Printf("Failed to copy terraform.tf from %s to %s: %s\n", path, newFolder, err)
+				}
+				firstIteration = false
+			}
+			return filepath.SkipDir // skip traversing the inside of this directory further as we process it at once
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println("Error processing directories:", err)
+	}
+	json = json[:len(json)-2]
+	json = "{\n" + json + "\n}"
+	fmt.Println(json)
+	return json, terra
+}
+
+func processDirectory(dirPath string, json string, terra string) (string, string) {
+	// Specify the JSON and .tf file names if they are fixed or modify logic to detect them
+	jsonFilePath := filepath.Join(dirPath, "aztfexportResourceMapping.json")
+	tfFilePath := filepath.Join(dirPath, "main.tf")
+
+	// Read JSON file content
+	jsonContent, err := ioutil.ReadFile(jsonFilePath)
+	if err != nil {
+		fmt.Printf("Failed reading %s: %s\n", jsonFilePath, err)
+		return json, terra
+	}
+
+	// Read .tf file content
+	tfContent, err := ioutil.ReadFile(tfFilePath)
+	if err != nil {
+		fmt.Printf("Failed reading %s: %s\n", tfFilePath, err)
+		return json, terra
+	}
+
+	json_to_add := string(jsonContent)
+
+	json_to_add = json_to_add[2:len(json_to_add)-2] + ",\n"
+	json += json_to_add
+	terra += string(tfContent)
+	return json, terra
+}
+
+func copyFile(src, dest string) error {
+	input, err := ioutil.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(dest, input, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }
