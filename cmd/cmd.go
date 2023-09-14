@@ -27,6 +27,6 @@ func Execute() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "terrafy",
-	Short: "A brief description of your application",
+	Use:   "tfmodule",
+	Short: "A tool to bring your azure infraestructure to terraform code",
 }

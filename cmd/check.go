@@ -10,9 +10,15 @@ import (
 // checkCmd represents the check command
 var checkCmd = &cobra.Command{
 	Use:   "check",
-	Short: "A brief description",
-	Long:  `a longer description`,
-	Run:   runCheck,
+	Short: "Check which resources are missing mapping",
+	Long: `
+Compare the tfmodule.yaml file with the aztfexportResourceMapping.json and 
+see which resources are missing mapping, generating a CSV with all the resources 
+that are missing and with those that exist in the json, and counting them.
+
+It requires the flags --conf with the path for thefolder containing the tfmodule.yaml and the
+flag --src with the  path for the folder containing the aztfexportResourceMapping.json`,
+	Run: runCheck,
 }
 
 func init() {
