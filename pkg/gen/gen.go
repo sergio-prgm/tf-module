@@ -226,3 +226,45 @@ func GenerateModuleYaml(resourcesMapping []inout.Resource, modules_map []inout.M
 	}
 	return resources
 }
+
+// CheckResources
+// Checks if the resources in the resourceGroup have it's mapping on the yaml file and counts them
+func CheckResources(resources []inout.Resource, mapped_resources inout.YamlMapping) []inout.CsvResources {
+	resourcesCsv := []inout.CsvResources{}
+	resource_exists := false
+	for _, resource := range resources {
+		for _, module := range mapped_resources.Modules {
+			for _, yaml_resource := range module.Resources {
+				if resource.ResourceType == yaml_resource {
+					resource_exists = true
+					resourcesCsv = addToStruct(resource.ResourceType, module.Name, resourcesCsv)
+					continue
+				}
+			}
+			if resource_exists {
+				continue
+			}
+		}
+		if !resource_exists {
+			resourcesCsv = addToStruct(resource.ResourceType, "", resourcesCsv)
+		}
+		resource_exists = false
+	}
+	return resourcesCsv
+}
+
+// addToStruct
+// it adds a resource to the []CsvResources structure or increments its quantity if it already exists
+func addToStruct(resource string, module string, structure []inout.CsvResources) []inout.CsvResources {
+	for i, csv_resource := range structure {
+		if resource == csv_resource.Resource {
+			structure[i].Quantity += 1
+			return structure
+		}
+	}
+	return append(structure, inout.CsvResources{
+		Resource: resource,
+		Module:   module,
+		Quantity: 1,
+	})
+}
