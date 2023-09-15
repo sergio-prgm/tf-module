@@ -41,6 +41,7 @@ type Resource struct {
 type ModuleResource struct {
 	Module       string
 	ResourceType string
+	Quantity     string
 }
 
 type CsvResources struct {
@@ -246,8 +247,9 @@ func ParseCSV(filename string) []ModuleResource {
 			continue
 		}
 		resources = append(resources, ModuleResource{
-			Module:       row[0],
-			ResourceType: row[1],
+			Module:       row[1],
+			ResourceType: row[0],
+			Quantity:     row[2],
 		})
 	}
 
