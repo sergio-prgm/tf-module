@@ -164,6 +164,7 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 											//deveria ser aqui o bloco dentro de bloco
 											if second_block, ok := inner_value.(map[string]interface{}); ok {
 												blockInnerKey = addBlockInsideBlock(key, innerKey, second_block, blockInnerKey)
+												appendToBlock(blockContents, key, "", "")
 											} else {
 												line := fmt.Sprintf("\t\t\t%s = try(%s.value[\"%s\"], null)\n", innerKey, key, innerKey)
 												appendToBlock(blockContents, key, innerKey, line)
