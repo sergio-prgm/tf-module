@@ -8,12 +8,12 @@ import (
 
 // validateModules checks whether the information in the config file matches the
 // contents of the main.tf and prompts the user the information
-func validateModules(configFile inout.F, parsedFile inout.ParsedTf) bool {
-	return false
+func validateModules(configFile []string, parsedFile inout.ParsedTf) bool {
+	panic("Not implemented")
 }
 
 // updateConfig allows the user to modify the contents of the config file to
 // accommodate late changes or forgotten modules/resources/etc.
 func updateConfig() error {
-	return nil
+	panic("Not implemented")
 }
