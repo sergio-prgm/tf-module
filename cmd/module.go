@@ -41,7 +41,7 @@ func generateYaml(cmd *cobra.Command, args []string) {
 	}
 
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
-	csv_resources := inout.ParseCSV(yml + "module_map.csv")
+	csv_resources := inout.ParseCSV(yml + "existing_resources.csv")
 	mapped_yaml := gen.GenerateModuleYaml(resourcesMapping, csv_resources)
 	inout.WriteYaml(yml+"tfmodule.yaml", mapped_yaml)
 

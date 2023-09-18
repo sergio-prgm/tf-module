@@ -41,6 +41,7 @@ type Resource struct {
 type ModuleResource struct {
 	Module       string
 	ResourceType string
+	Quantity     string
 }
 
 type CsvResources struct {
@@ -246,8 +247,9 @@ func ParseCSV(filename string) []ModuleResource {
 			continue
 		}
 		resources = append(resources, ModuleResource{
-			Module:       row[0],
-			ResourceType: row[1],
+			Module:       row[1],
+			ResourceType: row[0],
+			Quantity:     row[2],
 		})
 	}
 
@@ -345,6 +347,16 @@ func ReadMultipleResourceGroups(src string, newFolder string) (string, string) {
 	terra := ""
 	firstIteration := true
 
+	if _, err := os.Stat(newFolder); !os.IsNotExist(err) {
+		// directory exists
+		err = os.RemoveAll(newFolder)
+		if err != nil {
+			fmt.Println("Failed to delete folder:", err)
+		} else {
+			fmt.Println("Folder deleted successfully.")
+		}
+	}
+
 	err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -353,6 +365,10 @@ func ReadMultipleResourceGroups(src string, newFolder string) (string, string) {
 		if info.IsDir() && path != src {
 			json, terra = processDirectory(path, json, terra)
 			if firstIteration {
+				if err := os.Mkdir(newFolder, 0755); err != nil {
+					fmt.Println("Error:", err)
+				}
+
 				// Copy provider.tf and terraform.tf files to the new folder on the first iteration
 				if err := copyFile(filepath.Join(path, "provider.tf"), newFolder+"/provider.tf"); err != nil {
 					fmt.Printf("Failed to copy provider.tf from %s to %s: %s\n", path, newFolder, err)
