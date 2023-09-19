@@ -54,7 +54,7 @@ func ParseResource(rawResource string) map[string]interface{} {
 		//Dentro de um block
 		if slices.Contains(splittedStr, "{") && !slices.Contains(splittedStr, "=") {
 			last_var = splittedStr[0]
-			content += "\"" + splittedStr[0] + "\" = [\n"
+			content += "\"" + splittedStr[0] + "\" : [\n"
 			content += "{\n"
 			i, content = insideBracket(stringArr, i, content)
 			still_first_string := true
@@ -78,7 +78,7 @@ func ParseResource(rawResource string) map[string]interface{} {
 				}
 			}
 		} else if slices.Contains(splittedStr, "{") {
-			content += "\"" + splittedStr[0] + "\" = {\n"
+			content += "\"" + splittedStr[0] + "\" : {\n"
 			i, content = insideBracket(stringArr, i, content)
 		} else {
 			v = stringArr[i]
@@ -101,7 +101,7 @@ func ParseResource(rawResource string) map[string]interface{} {
 		content += "\n"
 	}
 
-	jsonedString := "{" + strings.ReplaceAll(content, "=", ":") + "\n}"
+	jsonedString := "{" + strings.ReplaceAll(content, " = ", ":") + "\n}"
 	err := json.Unmarshal([]byte(jsonedString), &resource)
 	if err != nil {
 		fmt.Println(jsonedString)
@@ -215,11 +215,12 @@ func AddResource(resources *[]inout.ModuleResource, item inout.ModuleResource) {
 
 // GenerateModuleYaml returns an []inout.ModuleResource
 // It generates the mapping of the resources with the respective module to generate the yaml file
+// The first one is the json file, and the second argument is the csv
 func GenerateModuleYaml(resourcesMapping []inout.Resource, modules_map []inout.ModuleResource) []inout.ModuleResource {
 	var resources []inout.ModuleResource
 	for _, resource := range resourcesMapping {
 		for _, mapped_resource := range modules_map {
-			if resource.ResourceType == mapped_resource.ResourceType {
+			if mapped_resource.Module != "" && resource.ResourceType == mapped_resource.ResourceType {
 				AddResource(&resources, mapped_resource)
 			}
 		}

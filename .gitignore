@@ -1,3 +1,4 @@
 output/
 defender-prueba/
-main.exe
+*.exe
+resourceGroups/
