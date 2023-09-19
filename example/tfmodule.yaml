@@ -1,10 +1,4 @@
 modules:
-    - name: ResourceGroup
-      resources:
-        - azurerm_resource_group
-    - name: Compute
-      resources:
-        - azurerm_linux_virtual_machine
     - name: Network
       resources:
         - azurerm_network_interface
@@ -13,6 +7,7 @@ modules:
         - azurerm_network_security_rule
         - azurerm_public_ip
         - azurerm_virtual_network
+        - azurerm_subnet
     - name: StorageAccount
       resources:
         - azurerm_storage_account
@@ -20,6 +15,12 @@ modules:
     - name: Monitor
       resources:
         - azurerm_monitor_action_group
+    - name: ResourceGroup
+      resources:
+        - azurerm_resource_group
+    - name: Compute
+      resources:
+        - azurerm_linux_virtual_machine
 config:
     - one
     - two

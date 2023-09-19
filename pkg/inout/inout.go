@@ -57,6 +57,16 @@ type BlockInnerKey struct {
 	Line           string `json:"Line"`
 }
 
+type Imports struct {
+	Resource_key int
+	Resource_id  string
+}
+
+type UnmappedOutputs struct {
+	ResourceName     string
+	ResourceVariable string
+}
+
 // ReadConfig creates a structured YamlMapping
 // to use in tfvars, variables, modules, etc.
 func ReadConfig(fileName string) YamlMapping {
