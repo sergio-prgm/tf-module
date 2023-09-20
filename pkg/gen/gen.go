@@ -12,11 +12,13 @@ import (
 
 type VarsContents []map[string]interface{}
 
+var Not_Found_resources []inout.UnmappedOutputs
+var Found_resources []inout.UnmappedOutputs
+
 // CreateVars creates a structured map[resource_name]contents{}
 // to use in tfvars, variables, modules, etc.
 func CreateVars(rawResources []string, modules []inout.Modules, mapped_imports []inout.Imports) map[string]VarsContents {
 	var vars map[string]VarsContents = make(map[string]VarsContents)
-	var not_found_resources []inout.UnmappedOutputs
 	for _, v := range modules {
 		for _, resource := range rawResources {
 			resoureceArray := strings.Split(resource, "\n")
@@ -28,19 +30,9 @@ func CreateVars(rawResources []string, modules []inout.Modules, mapped_imports [
 			if slices.Contains(v.Resources, rawResourceName) {
 				// fmt.Println("\nRaw block content:")
 				// fmt.Println(blockContent)
-				newResource, unfound_resources := ParseResource(blockContent, mapped_imports, resourceName, not_found_resources, modules)
-				not_found_resources = unfound_resources
+				newResource := ParseResource(blockContent, mapped_imports, resourceName, modules)
 				// fmt.Printf("\n%v\n", newResource)
 				vars[resourceName] = append(vars[resourceName], newResource)
-			}
-		}
-	}
-	fmt.Println("\nNot found resources ids in terraform.tfvars:")
-	for _, resource := range not_found_resources {
-		fmt.Println(resource.ResourceName + ":")
-		for _, resource_to_print := range not_found_resources {
-			if resource.ResourceName == resource_to_print.ResourceName {
-				fmt.Println("\t" + resource.ResourceVariable)
 			}
 		}
 	}
@@ -50,7 +42,7 @@ func CreateVars(rawResources []string, modules []inout.Modules, mapped_imports [
 
 // ParseResource creates a structured map[string]interface{}
 // Its used to parse the values on the main.tf of aztfexport to generate the terraform.tfvars
-func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceName string, unfound_resources []inout.UnmappedOutputs, modules []inout.Modules) (map[string]interface{}, []inout.UnmappedOutputs) {
+func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceName string, modules []inout.Modules) map[string]interface{} {
 	var resource map[string]interface{}
 	content_to_add := ""
 	content := ""
@@ -69,7 +61,7 @@ func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceN
 			last_var = splittedStr[0]
 			content += "\"" + splittedStr[0] + "\" : [\n"
 			content += "{\n"
-			i, content, unfound_resources = insideBracket(stringArr, i, content, mapped_imports, resourceName, unfound_resources, modules)
+			i, content = insideBracket(stringArr, i, content, mapped_imports, resourceName, modules)
 			still_first_string := true
 			i += 1
 			for still_first_string && i < len(stringArr) {
@@ -78,7 +70,7 @@ func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceN
 				// ainda dentro do bloco
 				if last_var == splittedStr[0] {
 					content += "\n{\n"
-					i, content, unfound_resources = insideBracket(stringArr, i, content, mapped_imports, resourceName, unfound_resources, modules)
+					i, content = insideBracket(stringArr, i, content, mapped_imports, resourceName, modules)
 					i++
 				} else {
 					if content[len(content)-1] == ',' {
@@ -92,11 +84,11 @@ func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceN
 			}
 		} else if slices.Contains(splittedStr, "{") {
 			content += "\"" + splittedStr[0] + "\" : {\n"
-			i, content, unfound_resources = insideBracket(stringArr, i, content, mapped_imports, resourceName, unfound_resources, modules)
+			i, content = insideBracket(stringArr, i, content, mapped_imports, resourceName, modules)
 		} else {
 			v = stringArr[i]
 			splittedStr := strings.Split(strings.TrimSpace(v), " ")
-			content_to_add, unfound_resources = addContent(splittedStr, mapped_imports, ",", resourceName, unfound_resources, modules)
+			content_to_add = addContent(splittedStr, mapped_imports, ",", resourceName, modules)
 			content += content_to_add
 		}
 		i++
@@ -121,7 +113,7 @@ func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceN
 		fmt.Println("Here", err)
 	}
 
-	return resource, unfound_resources
+	return resource
 }
 
 // countChar returnes an int
@@ -136,18 +128,18 @@ func countChar(s string, char rune) int {
 	return count
 }
 
-func addUnmappedResource(unfound_resources []inout.UnmappedOutputs, unfound_resource inout.UnmappedOutputs) []inout.UnmappedOutputs {
+func addUnmappedResource(resources []inout.UnmappedOutputs, unfound_resource inout.UnmappedOutputs) []inout.UnmappedOutputs {
 	exists := false
-	for _, resource := range unfound_resources {
+	for _, resource := range resources {
 		if resource.ResourceName == unfound_resource.ResourceName && resource.ResourceVariable == unfound_resource.ResourceVariable {
 			exists = true
 			continue
 		}
 	}
 	if !exists {
-		unfound_resources = append(unfound_resources, unfound_resource)
+		resources = append(resources, unfound_resource)
 	}
-	return unfound_resources
+	return resources
 }
 
 func findResourceInYaml(resourceName string, modules []inout.Modules) bool {
@@ -161,7 +153,7 @@ func findResourceInYaml(resourceName string, modules []inout.Modules) bool {
 	return false
 }
 
-func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string string, resourceName string, unfound_resources []inout.UnmappedOutputs, modules []inout.Modules) (string, []inout.UnmappedOutputs) {
+func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string string, resourceName string, modules []inout.Modules) string {
 	string_to_join := ""
 	content := ""
 	its_id := false
@@ -184,7 +176,15 @@ func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string
 				ResourceName:     resourceName,
 				ResourceVariable: splittedStr[0],
 			}
-			unfound_resources = addUnmappedResource(unfound_resources, unfound_resource)
+			Not_Found_resources = addUnmappedResource(Not_Found_resources, unfound_resource)
+		}
+		if found_id && found_resource {
+			string_to_join = ""
+			found_resource := inout.UnmappedOutputs{
+				ResourceName:     resourceName,
+				ResourceVariable: splittedStr[0],
+			}
+			Found_resources = addUnmappedResource(Found_resources, found_resource)
 		}
 		if !found_resource {
 			its_id = false
@@ -210,7 +210,7 @@ func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string
 					ResourceName:     resourceName,
 					ResourceVariable: splittedStr[0],
 				}
-				unfound_resources = addUnmappedResource(unfound_resources, unfound_resource)
+				Not_Found_resources = addUnmappedResource(Not_Found_resources, unfound_resource)
 			}
 			if !found_resource {
 				string_to_join = ""
@@ -218,8 +218,16 @@ func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string
 					ResourceName:     resourceName,
 					ResourceVariable: splittedStr[0],
 				}
-				unfound_resources = addUnmappedResource(unfound_resources, unfound_resource)
+				Not_Found_resources = addUnmappedResource(Not_Found_resources, unfound_resource)
 				continue
+			}
+			if found_id && found_resource {
+				string_to_join = ""
+				found_resource := inout.UnmappedOutputs{
+					ResourceName:     resourceName,
+					ResourceVariable: splittedStr[0],
+				}
+				Found_resources = addUnmappedResource(Found_resources, found_resource)
 			}
 		}
 		if string_to_join != "" {
@@ -237,12 +245,12 @@ func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string
 		content += fmt.Sprintf("\"%s\" %s", splittedStr[0], " : "+string_to_join)
 	}
 	content += end_string
-	return content, unfound_resources
+	return content
 }
 
 // insideBracket returnes an int and a string
 // Its used to parse the values inside brackets and its nested values
-func insideBracket(stringArr []string, i int, content string, mapped_imports []inout.Imports, resourceName string, unfound_resources []inout.UnmappedOutputs, modules []inout.Modules) (int, string, []inout.UnmappedOutputs) {
+func insideBracket(stringArr []string, i int, content string, mapped_imports []inout.Imports, resourceName string, modules []inout.Modules) (int, string) {
 	bracket_count := 1
 	content_to_add := ""
 	for bracket_count > 0 {
@@ -261,16 +269,17 @@ func insideBracket(stringArr []string, i int, content string, mapped_imports []i
 			bracket_count -= 1
 		} else {
 			content += "\n"
-			content_to_add, unfound_resources = addContent(splittedStr, mapped_imports, ",", resourceName, unfound_resources, modules)
+			content_to_add = addContent(splittedStr, mapped_imports, ",", resourceName, modules)
 			content += content_to_add
 		}
 	}
-	return i, content, unfound_resources
+	return i, content
 }
 
 // GenerateImports returnes an string
 // It generates the imports blocks for the imports.tf file
-func GenerateImports(resources []inout.Resource, modules inout.YamlMapping) (string, []inout.Imports) {
+func GenerateImports(resources []inout.Resource, modules inout.YamlMapping) (string, []inout.Imports, []string) {
+	var unmappedResources []string
 	var imports_mapping []inout.Imports
 	resourceModuleMapping := make(map[string]string)
 	for _, module := range modules.Modules {
@@ -300,6 +309,9 @@ func GenerateImports(resources []inout.Resource, modules inout.YamlMapping) (str
 			formattedResourceType := fmt.Sprintf("module.%s.%s.%ss[\"%d\"]", moduleName, resource.ResourceType, resource_type, index)
 			output.WriteString(fmt.Sprintf("import {\n  to = %s\n  id = \"%s\"\n}\n\n", formattedResourceType, resource.ResourceID))
 		} else {
+			if !slices.Contains(unmappedResources, resource.ResourceType) {
+				unmappedResources = append(unmappedResources, resource.ResourceType)
+			}
 			otherOutput.WriteString(fmt.Sprintf("%s\n", resource.ResourceType))
 		}
 	}
@@ -308,13 +320,7 @@ func GenerateImports(resources []inout.Resource, modules inout.YamlMapping) (str
 	path := "./output/imports.tf"
 	success := "\nAll the imports where generated correctly!\nFile: " + path
 	inout.WriteToFile(finalString, path, success)
-	path = "./output/unmapped_resources.txt"
-	success = "\nUnmapped Resources:\n" + otherOutput.String() + "\nAll the unmapped_resources where write correctly!\nFile: " + path
-	inout.WriteToFile(otherOutput.String(), path, success)
-
-	fmt.Println("Data written to files successfully!")
-
-	return finalString, imports_mapping
+	return finalString, imports_mapping, unmappedResources
 }
 
 // AddResource

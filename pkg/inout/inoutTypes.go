@@ -55,3 +55,11 @@ type Outputs struct {
 	OputputResource string
 	OuptutModuleRef string
 }
+
+type Template struct {
+	//Subscription_ID   string //no
+	UnmappedResources []string
+	NotFoundResources []UnmappedOutputs
+	FoundResources    []UnmappedOutputs
+	//ResourceGroups    []string //no
+}

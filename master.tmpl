@@ -1,0 +1,28 @@
+Unmapped Resources:
+    This are resources that exists in resource group(s) but doesn't 
+    exists it's mapping in /conf/tfmodule.yaml 
+    {{ if not .UnmappedResources }} 
+    Doesn't exist any unmapped resource
+    {{ else }} {{ range .UnmappedResources }}
+    {{ . }}{{ end }}{{end}}
+
+Not found resources id's:
+    This are the resources with the attribute that references an resource id
+    that is of a different subscription or the resource name doesn't match any
+    other resource
+    {{ if not .NotFoundResources }} 
+    Doesn't exist any not found resource id
+    {{ else }} {{ range .NotFoundResources }}
+    resource: {{ .ResourceName }}
+    attribute: {{ .ResourceVariable }}
+    {{ end }} {{ end }} 
+
+Found resources id's:
+    This are the resources with the attribute that references an resource id
+    and was changed to a reference for the ouput for that resource
+    {{ if not .FoundResources }} 
+    Doesn't exist any found resource id
+    {{ else }} {{ range .FoundResources }}
+    resource: {{ .ResourceName }}
+    attribute: {{ .ResourceVariable }}
+    {{ end }} {{ end }} 

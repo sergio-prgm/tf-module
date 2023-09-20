@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"text/template"
 
 	"github.com/sergio-prgm/tf-module/pkg/gen"
 	"github.com/sergio-prgm/tf-module/pkg/inout"
@@ -12,6 +14,8 @@ import (
 	"github.com/sergio-prgm/tf-module/pkg/util"
 	"github.com/spf13/cobra"
 )
+
+var eTmplFile string
 
 // terrafyCmd represents the terrafy command
 var terrafyCmd = &cobra.Command{
@@ -46,7 +50,7 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 	configModules := inout.ReadConfig(yml)
 	scf.CreateFolders(configModules)
 	/////
-	_, imports_mapping := gen.GenerateImports(resourcesMapping, configModules)
+	_, imports_mapping, unmapped_resources := gen.GenerateImports(resourcesMapping, configModules)
 
 	resourceMap := gen.CreateVars(parsedBlocks.Resources, configModules.Modules, imports_mapping)
 
@@ -62,4 +66,31 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 	if err := tfcmd.Run(); err != nil {
 		log.Fatal(err)
 	}
+	templateInfo := inout.Template{
+		UnmappedResources: unmapped_resources,
+		NotFoundResources: gen.Not_Found_resources,
+		FoundResources:    gen.Found_resources,
+	}
+	fmt.Println("")
+	tmplFile := "master.tmpl"
+	// tmpl, err := template.New(tmplFile).ParseFiles(tmplFile)
+	tmpl, err := template.New(tmplFile).ParseFiles(tmplFile)
+
+	if err != nil {
+		fmt.Println("This is wrong")
+	}
+
+	masterFile, err := os.Create("./output/logs.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = tmpl.Execute(masterFile, templateInfo)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = tmpl.Execute(os.Stdout, templateInfo)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 }
