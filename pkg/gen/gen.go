@@ -179,7 +179,6 @@ func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string
 			Not_Found_resources = addUnmappedResource(Not_Found_resources, unfound_resource)
 		}
 		if found_id && found_resource {
-			string_to_join = ""
 			found_resource := inout.UnmappedOutputs{
 				ResourceName:     resourceName,
 				ResourceVariable: splittedStr[0],
@@ -222,7 +221,6 @@ func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string
 				continue
 			}
 			if found_id && found_resource {
-				string_to_join = ""
 				found_resource := inout.UnmappedOutputs{
 					ResourceName:     resourceName,
 					ResourceVariable: splittedStr[0],
