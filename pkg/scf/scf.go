@@ -99,7 +99,6 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 			resourceCall += fmt.Sprintf("\t%s = var.%s\n", cleanResource, cleanResource)
 		}
 
-		/////
 		for _, output := range outputs {
 			if v.Name == output.OuputModule {
 				resourceCall += "\t" + output.OputputResource + " = module." + output.OuptutModuleRef + "." + output.OputputResource + "\n"
@@ -235,7 +234,6 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 		outputs_mapp[output.OuptutModuleRef] += "output \"" + output.OputputResource + "\" {\n"
 		outputs_mapp[output.OuptutModuleRef] += "\t value = azurerm_" + output.OputputResource + ".res_" + output.OputputResource + "s\n}\n"
 		variables_mapp[output.OuputModule] += "variable " + output.OputputResource + "{ type = any }\n"
-		fmt.Println(output)
 	}
 	for _, v := range configModules.Modules {
 		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
