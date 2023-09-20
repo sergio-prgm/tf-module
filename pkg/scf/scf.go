@@ -50,7 +50,7 @@ func CreateMainFiles(mainContent string, varsContent string, tfvarsContent strin
 }
 
 // CreateModuleFiles creates all the files that are general to the modules
-func CreateModuleFiles(filePath string, content string, variables string) error {
+func CreateModuleFiles(filePath string, content string, variables string, outputs string) error {
 	err := os.WriteFile(filePath+"main.tf",
 		[]byte(content),
 		os.ModePerm)
@@ -61,7 +61,10 @@ func CreateModuleFiles(filePath string, content string, variables string) error 
 		fmt.Printf("\n%s created...", filePath+"main.tf")
 	}
 
-	_, err = os.Create(filePath + "output.tf")
+	err = os.WriteFile(filePath+"output.tf",
+		[]byte(outputs),
+		os.ModePerm)
+
 	if err != nil {
 		log.Fatalf("Error creating %s:\n%v", filePath+"output.tf", err)
 	} else {
@@ -84,6 +87,7 @@ func CreateModuleFiles(filePath string, content string, variables string) error 
 // specified in the yaml config file
 func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsContents, configModules inout.YamlMapping) error {
 	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
+	outputs := GenerateModulesFiles(configModules, resourceMap)
 
 	modulesBlocks := ""
 
@@ -93,6 +97,13 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 		for _, r := range v.Resources {
 			cleanResource := strings.Replace(r, "azurerm_", "", 1) + "s"
 			resourceCall += fmt.Sprintf("\t%s = var.%s\n", cleanResource, cleanResource)
+		}
+
+		/////
+		for _, output := range outputs {
+			if v.Name == output.OuputModule {
+				resourceCall += "\t" + output.OputputResource + " = module." + output.OuptutModuleRef + "." + output.OputputResource + "\n"
+			}
 		}
 
 		modulesBlocks += fmt.Sprintf(
@@ -122,17 +133,20 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 	}
 
 	CreateMainFiles(mainContent, varsContent, tfvarsContent)
-	GenerateModulesFiles(configModules, resourceMap)
 	return nil
 }
 
 // GenerateModulesFiles generates the content of the main.tf file for each module
 // with is respective resources and variables
-func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[string]gen.VarsContents) {
+func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[string]gen.VarsContents) []inout.Outputs {
 	var keys_array []string
 	var blockInnerKey []inout.BlockInnerKey
+	var outputs []inout.Outputs
+	content_mapp := make(map[string]string)
+	variables_mapp := make(map[string]string)
+	outputs_mapp := make(map[string]string)
 	for _, v := range configModules.Modules {
-		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
+		//filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
 		variables := ""
 		content := ""
 		for resourceName, resource := range resourceMap {
@@ -163,22 +177,24 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 										for innerKey, inner_value := range innerMap {
 											//deveria ser aqui o bloco dentro de bloco
 											if second_block, ok := inner_value.(map[string]interface{}); ok {
-												blockInnerKey = addBlockInsideBlock(key, innerKey, second_block, blockInnerKey)
+												blockInnerKey, outputs = addBlockInsideBlock(key, innerKey, second_block, blockInnerKey, configModules, cleanResource, outputs)
 												appendToBlock(blockContents, key, "", "")
 											} else {
-												line := fmt.Sprintf("\t\t\t%s = try(%s.value[\"%s\"], null)\n", innerKey, key, innerKey)
+												access_variable := fmt.Sprintf("%s.value[\"%s\"]", key, innerKey)
+												line := ""
+												line, outputs = change_resource_id_reference(innerKey, configModules, cleanResource, "\t\t\t", access_variable, outputs)
 												appendToBlock(blockContents, key, innerKey, line)
 											}
 										}
 									} else {
-										keys_array, block_content = addBasicModuleField(keys_array, block_content, key)
+										keys_array, block_content, outputs = addBasicModuleField(keys_array, block_content, key, configModules, cleanResource, outputs)
 									}
 								} else {
-									keys_array, block_content = addBasicModuleField(keys_array, block_content, key)
+									keys_array, block_content, outputs = addBasicModuleField(keys_array, block_content, key, configModules, cleanResource, outputs)
 								}
 							}
 						default:
-							keys_array, block_content = addBasicModuleField(keys_array, block_content, key)
+							keys_array, block_content, outputs = addBasicModuleField(keys_array, block_content, key, configModules, cleanResource, outputs)
 						}
 					}
 				}
@@ -211,8 +227,21 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 				content += "}\n\n"
 			}
 		}
-		CreateModuleFiles(filePath, content, variables)
+		content_mapp[v.Name] = content
+		variables_mapp[v.Name] = variables
+		//CreateModuleFiles(filePath, content, variables)
 	}
+	for _, output := range outputs {
+		outputs_mapp[output.OuptutModuleRef] += "output \"" + output.OputputResource + "\" {\n"
+		outputs_mapp[output.OuptutModuleRef] += "\t value = azurerm_" + output.OputputResource + ".res_" + output.OputputResource + "s\n}\n"
+		variables_mapp[output.OuputModule] += "variable " + output.OputputResource + "{ type = any }\n"
+		fmt.Println(output)
+	}
+	for _, v := range configModules.Modules {
+		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
+		CreateModuleFiles(filePath, content_mapp[v.Name], variables_mapp[v.Name], outputs_mapp[v.Name])
+	}
+	return outputs
 }
 
 func existsBlockInnerKey(blockInnerKey []inout.BlockInnerKey, mainkey string, key string, innerKey string) bool {
@@ -224,10 +253,12 @@ func existsBlockInnerKey(blockInnerKey []inout.BlockInnerKey, mainkey string, ke
 	return false
 }
 
-func addBlockInsideBlock(mainkey string, key string, second_block map[string]interface{}, blockInnerKey []inout.BlockInnerKey) []inout.BlockInnerKey {
+func addBlockInsideBlock(mainkey string, key string, second_block map[string]interface{}, blockInnerKey []inout.BlockInnerKey, configModules inout.YamlMapping, cleanResource string, outputs []inout.Outputs) ([]inout.BlockInnerKey, []inout.Outputs) {
 	content := ""
 	for innerKey := range second_block {
-		line := fmt.Sprintf("\t\t\t\t\t%s = try(%s.value.%s.%s, null)\n", innerKey, mainkey, key, innerKey)
+		acess_variable := fmt.Sprintf("%s.value.%s.%s", mainkey, key, innerKey)
+		line := ""
+		line, outputs = change_resource_id_reference(key, configModules, cleanResource, "\t", acess_variable, outputs)
 		content += line
 		if !existsBlockInnerKey(blockInnerKey, mainkey, key, innerKey) {
 			blockInnerKey = append(blockInnerKey, inout.BlockInnerKey{
@@ -239,19 +270,91 @@ func addBlockInsideBlock(mainkey string, key string, second_block map[string]int
 		}
 	}
 	//block := fmt.Sprintf("\t\t\tdynamic \"%s\" {\n\t\t\t\tfor_each = try(%s.value[\"%s\"], []) == [] ? [] : [1]\n\t\t\t\tcontent {\n%s\t\t\t\t}\n\t\t\t}\n", key, mainkey, key, content)
-	return blockInnerKey
+	return blockInnerKey, outputs
+}
+
+func change_resource_id_reference(key string, configModules inout.YamlMapping, cleanResource string, tabs string, acess_variable string, outputs []inout.Outputs) (string, []inout.Outputs) {
+	main_resource := "azurerm_" + cleanResource
+	id_resource := strings.Replace(key, "_ids", "", 1)
+	id_resource = strings.Replace(id_resource, "_id", "", 1)
+	this_resource_module := ""
+	id_resource_module := ""
+	var tryString string
+	key = strings.Replace(key, "__full__", "", 1)
+	acess_variable = strings.Replace(acess_variable, "__full__", "", 1)
+	if strings.Contains(key, "_id") {
+		resource_key := "azurerm_" + id_resource
+		for _, module := range configModules.Modules {
+			for _, resource := range module.Resources {
+				if resource == main_resource {
+					this_resource_module = module.Name
+				}
+				if resource_key == resource {
+					id_resource_module = module.Name
+				}
+			}
+		}
+
+		///Dentro do mesmo ficheiro não é preciso output
+		if this_resource_module == id_resource_module {
+			tryString = tabs + key + " = "
+			if strings.Contains(key, "_ids") {
+				tryString += "[for id in " + acess_variable + ": startswith(id, \"/subscriptions/\") ? id : " + resource_key + ".res_" + id_resource + "s[id].id]\n"
+				tryString += "[for id in " + acess_variable + ": " + resource_key + ".res_" + id_resource + "s[id].id]\n"
+			} else {
+				second_acess_variable := strings.Replace(acess_variable, "\"]", "__full__\"]", 1)
+				tryString += "try(" + resource_key + ".res_" + id_resource + "s[" + acess_variable + "].id, try(" + second_acess_variable + ", null))\n"
+			}
+		} else if this_resource_module == "" || id_resource_module == "" {
+			//Um deles nao tem nada, nao mudar a logica que ja tava antes
+			tryString = fmt.Sprintf("%s%s = try(%s, null)\n", tabs, key, acess_variable)
+		} else {
+			tryString = tabs + key + " = "
+			if strings.Contains(key, "_ids") {
+				tryString += "[for id in " + acess_variable + ": startswith(id, \"/subscriptions/\") ? id : " + "var." + id_resource + "[id].id]\n"
+			} else {
+				second_acess_variable := strings.Replace(acess_variable, "\"]", "__full__\"]", 1)
+				tryString += "try(var." + id_resource + "[" + acess_variable + "].id, try(var." + id_resource + "[" + second_acess_variable + "].id, null))\n"
+			}
+			/// add to outputs
+			to_add := inout.Outputs{
+				OuputModule:     this_resource_module,
+				OputputResource: id_resource,
+				OuptutModuleRef: id_resource_module,
+			}
+			if !existsOutput(outputs, to_add) {
+				outputs = append(outputs, to_add)
+			}
+		}
+
+	} else {
+		tryString = fmt.Sprintf("%s%s = try(%s, null)\n", tabs, key, acess_variable)
+	}
+
+	return tryString, outputs
+}
+
+func existsOutput(outputs []inout.Outputs, to_add inout.Outputs) bool {
+	for _, val := range outputs {
+		if val.OuputModule == to_add.OuputModule && val.OputputResource == to_add.OputputResource && val.OuptutModuleRef == to_add.OputputResource {
+			return true
+		}
+	}
+	return false
 }
 
 // addBasicModuleField
 // adds the basic fields on a resource (e.g name = try(each.value.name, null))
-func addBasicModuleField(keys_array []string, block_content string, key string) ([]string, string) {
+func addBasicModuleField(keys_array []string, block_content string, key string, configModules inout.YamlMapping, cleanResource string, outputs []inout.Outputs) ([]string, string, []inout.Outputs) {
+	tryString, outputs := change_resource_id_reference(key, configModules, cleanResource, "\t", "each.value."+key, outputs)
 
-	tryString := fmt.Sprintf("\t%s = try(each.value.%s, null)\n", key, key)
 	if !stringExists(keys_array, key) {
 		keys_array = append(keys_array, key)
 		block_content += tryString
+	} else {
+		tryString = ""
 	}
-	return keys_array, block_content
+	return keys_array, block_content, outputs
 }
 
 // stringExists

@@ -8,7 +8,7 @@ import (
 
 // validateModules checks whether the information in the config file matches the
 // contents of the main.tf and prompts the user the information
-func validateModules(configFile inout.F, parsedFile inout.ParsedTf) bool {
+func validateModules(configFile inout.YamlMapping, parsedFile inout.ParsedTf) bool {
 	return false
 }
 

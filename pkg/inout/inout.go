@@ -67,6 +67,12 @@ type UnmappedOutputs struct {
 	ResourceVariable string
 }
 
+type Outputs struct {
+	OuputModule     string
+	OputputResource string
+	OuptutModuleRef string
+}
+
 // ReadConfig creates a structured YamlMapping
 // to use in tfvars, variables, modules, etc.
 func ReadConfig(fileName string) YamlMapping {

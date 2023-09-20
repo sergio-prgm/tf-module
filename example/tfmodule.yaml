@@ -3,11 +3,13 @@ modules:
       resources:
         - azurerm_network_interface
         - azurerm_network_interface_security_group_association
-        - azurerm_network_security_group
         - azurerm_network_security_rule
         - azurerm_public_ip
         - azurerm_virtual_network
         - azurerm_subnet
+    - name: Network_security
+      resources:
+        - azurerm_network_security_group
     - name: StorageAccount
       resources:
         - azurerm_storage_account
