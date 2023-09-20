@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"os/exec"
 
 	"github.com/sergio-prgm/tf-module/pkg/gen"
 	"github.com/sergio-prgm/tf-module/pkg/inout"
@@ -42,15 +44,22 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
 
 	configModules := inout.ReadConfig(yml)
+	scf.CreateFolders(configModules)
 	/////
 	_, imports_mapping := gen.GenerateImports(resourcesMapping, configModules)
 
 	resourceMap := gen.CreateVars(parsedBlocks.Resources, configModules.Modules, imports_mapping)
 
-	scf.CreateFolders(configModules)
 	err := scf.CreateFiles(parsedBlocks, resourceMap, configModules)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	tfcmd := exec.Command("terraform", "fmt", "-recursive")
+	if errors.Is(tfcmd.Err, exec.ErrDot) {
+		tfcmd.Err = nil
+	}
+	if err := tfcmd.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
