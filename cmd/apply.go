@@ -42,12 +42,12 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
 
 	configModules := inout.ReadConfig(yml)
+	scf.CreateFolders(configModules)
 	/////
 	_, imports_mapping := gen.GenerateImports(resourcesMapping, configModules)
 
 	resourceMap := gen.CreateVars(parsedBlocks.Resources, configModules.Modules, imports_mapping)
 
-	scf.CreateFolders(configModules)
 	err := scf.CreateFiles(parsedBlocks, resourceMap, configModules)
 	if err != nil {
 		log.Fatal(err)
