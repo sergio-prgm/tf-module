@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"os/exec"
 
 	"github.com/sergio-prgm/tf-module/pkg/gen"
 	"github.com/sergio-prgm/tf-module/pkg/inout"
@@ -53,4 +55,11 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
+	tfcmd := exec.Command("terraform", "fmt", "-recursive")
+	if errors.Is(tfcmd.Err, exec.ErrDot) {
+		tfcmd.Err = nil
+	}
+	if err := tfcmd.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
