@@ -70,7 +70,7 @@ func CreateModuleFiles(filePath string, content string, variables string, output
 	} else {
 		fmt.Printf("\n%s created...", filePath+"output.tf")
 	}
-
+	variables += "variable common { type = any }\n"
 	err = os.WriteFile(filePath+"variables.tf",
 		[]byte(variables),
 		os.ModePerm)
@@ -106,7 +106,7 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 		}
 
 		modulesBlocks += fmt.Sprintf(
-			"module \"%s\" {\n\tsource = \"./Modules/%s\"\n%s}\n",
+			"module \"%s\" {\n\tsource = \"./Modules/%s\"\n common = var.common\n%s}\n",
 			v.Name,
 			v.Name,
 			resourceCall,
@@ -121,15 +121,49 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 
 	tfvarsContent := "// Automatically generated variables\n// Should be changed\n"
 	varsContent := "// Automatically generated variables\n// Should be changed"
-	for name, resource := range resourceMap {
-		encodedVar, err := json.MarshalIndent(resource, " ", "  ")
-		if err != nil {
-			fmt.Println(err)
+	varsContent += "\n\nvariable \"common\" { type = any }"
+	tfvarsContent += "common = {\n"
+	for _, common := range configModules.CommonVars {
+		tfvarsContent += "\t\"" + common.Name + "\" : [\n"
+		for _, val := range common.Value {
+			tfvarsContent += "\t\t\"" + val + "\",\n"
 		}
 
-		tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
-		varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
+		tfvarsContent += "\t]\n"
 	}
+	tfvarsContent += "}\n"
+	for _, module := range configModules.Modules {
+		tfvarsContent += "\n// Start of the variables for the module " + module.Name + "\n"
+		for _, resource_name := range module.Resources {
+			for name, resource := range resourceMap {
+				name_compare := name[:len(name)-1]
+				resource_name_compare := strings.Replace(resource_name, "azurerm_", "", 1)
+				if name_compare == resource_name_compare {
+					encodedVar, err := json.MarshalIndent(resource, " ", "  ")
+					if err != nil {
+						fmt.Println(err)
+					}
+					tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
+					//fmt.Println(fmt.Sprintf("%s = %s\n", name, string(encodedVar)))
+					varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
+				}
+
+			}
+		}
+		tfvarsContent += "// End of the variables for the module " + module.Name + "\n"
+	}
+
+	/*
+		for name, resource := range resourceMap {
+			encodedVar, err := json.MarshalIndent(resource, " ", "  ")
+			if err != nil {
+				fmt.Println(err)
+			}
+			tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
+			//fmt.Println(fmt.Sprintf("%s = %s\n", name, string(encodedVar)))
+			varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
+		}
+	*/
 
 	CreateMainFiles(mainContent, varsContent, tfvarsContent)
 	return nil
@@ -234,6 +268,7 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 		outputs_mapp[output.OuptutModuleRef] += "output \"" + output.OputputResource + "\" {\n"
 		outputs_mapp[output.OuptutModuleRef] += "\t value = azurerm_" + output.OputputResource + ".res_" + output.OputputResource + "s\n}\n"
 		variables_mapp[output.OuputModule] += "variable " + output.OputputResource + "{ type = any }\n"
+
 	}
 	for _, v := range configModules.Modules {
 		filePath := fmt.Sprintf("./output/Modules/%s/", v.Name)
@@ -281,6 +316,16 @@ func change_resource_id_reference(key string, configModules inout.YamlMapping, c
 	var tryString string
 	key = strings.Replace(key, "__full__", "", 1)
 	acess_variable = strings.Replace(acess_variable, "__full__", "", 1)
+	common_vars := inout.Yaml_mapping.CommonVars
+	found_common_name := false
+	for _, common := range common_vars {
+		found_common_name = false
+		if common.Name == id_resource {
+			found_common_name = true
+			break
+		}
+	}
+
 	if strings.Contains(key, "_id") {
 		resource_key := "azurerm_" + id_resource
 		for _, module := range configModules.Modules {
@@ -338,7 +383,12 @@ func change_resource_id_reference(key string, configModules inout.YamlMapping, c
 		}
 
 	} else {
-		tryString = fmt.Sprintf("%s%s = try(%s, null)\n", tabs, key, acess_variable)
+		if found_common_name {
+			second_acess_variable := strings.Replace(acess_variable, "\"]", "__full__\"]", 1)
+			tryString = fmt.Sprintf("%s%s = try(%s, try(var.common.%s[%s],null))\n", tabs, key, second_acess_variable, key, acess_variable)
+		} else {
+			tryString = fmt.Sprintf("%s%s = try(%s, null)\n", tabs, key, acess_variable)
+		}
 	}
 
 	return tryString, outputs

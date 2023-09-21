@@ -17,6 +17,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var Yaml_mapping YamlMapping
+
 // ReadConfig creates a structured YamlMapping
 // to use in tfvars, variables, modules, etc.
 func ReadConfig(fileName string) YamlMapping {
@@ -41,6 +43,7 @@ func ParseConfig(conf []byte) YamlMapping {
 	if err != nil {
 		log.Fatal()
 	}
+	Yaml_mapping = configModules
 	return configModules
 }
 

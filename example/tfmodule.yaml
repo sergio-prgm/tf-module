@@ -21,6 +21,14 @@ modules:
     - name: Monitor
       resources:
         - azurerm_monitor_action_group
+common:
+    - name: location
+      value: 
+        - eastus2
+        - northus
+    - name: resource_group_name
+      value:
+        - terraform_import
 config:
     - one
     - two

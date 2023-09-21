@@ -5,9 +5,15 @@ type Modules struct {
 	Resources []string `yaml:"resources"`
 }
 
+type CommonVar struct {
+	Name  string
+	Value []string
+}
+
 type YamlMapping struct {
-	Modules []Modules `yaml:"modules"`
-	Confg   []string  `yaml:"config"`
+	Modules    []Modules   `yaml:"modules"`
+	CommonVars []CommonVar `yaml:"common"`
+	Confg      []string    `yaml:"config"`
 }
 
 type ParsedTf struct {
