@@ -34,6 +34,7 @@ func init() {
 }
 
 func generateYaml(cmd *cobra.Command, args []string) {
+	util.CheckTerraformVersion()
 	yml := util.NormalizePath(ryml)
 	src := util.NormalizePath(rsrc)
 	if rg {

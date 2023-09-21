@@ -2,7 +2,13 @@ package util
 
 import (
 	"errors"
+	"fmt"
+	"log"
+	"os/exec"
+	"regexp"
 	"strings"
+
+	"github.com/Masterminds/semver"
 )
 
 // NormalizePath modifies the string given to it to have consistent paths
@@ -34,5 +40,38 @@ func FirstWordIs(line, comp string) (bool, error) {
 	} else {
 		firstWord := strings.Split(line, " ")[0]
 		return firstWord == comp, nil
+	}
+}
+
+func CheckTerraformVersion() {
+	cmdVersion := exec.Command("terraform", "--version")
+
+	// Run the command and capture its output
+	output, err := cmdVersion.Output()
+	if err != nil {
+		log.Fatalf("Failed to execute command: %s", err)
+	}
+
+	// Use a regular expression to extract the version number
+	re := regexp.MustCompile(`Terraform v([\d\.]+)`)
+	matches := re.FindSubmatch(output)
+	if matches == nil {
+		log.Fatalf("Failed to find version in output")
+	}
+
+	// Extract version
+	versionStr := string(matches[1])
+
+	version, err := semver.NewVersion(versionStr)
+	if err != nil {
+		log.Fatalf("Failed to parse version: %s", err)
+	}
+
+	// Check if version is greater than or equal to 1.5
+	constraint, _ := semver.NewConstraint(">= 1.5")
+	if constraint.Check(version) {
+		fmt.Print(EmphasizeStr(fmt.Sprintf("Terraform Version %s is greater than or equal to 1.5\n\n", versionStr), Green, Bold))
+	} else {
+		fmt.Print(EmphasizeStr(fmt.Sprintf("Terraform Version %s and needs to be at least 1.5\n\n", versionStr), Red, Bold))
 	}
 }

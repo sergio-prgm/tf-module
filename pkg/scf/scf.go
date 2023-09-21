@@ -294,7 +294,6 @@ func change_resource_id_reference(key string, configModules inout.YamlMapping, c
 				}
 			}
 		}
-		fmt.Println(this_resource_module + " ---- " + id_resource_module)
 		///Dentro do mesmo ficheiro não é preciso output
 		if this_resource_module == id_resource_module {
 			tryString = tabs + key + " = "

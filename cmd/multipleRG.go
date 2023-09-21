@@ -20,6 +20,7 @@ func init() {
 }
 
 func runMultipleRG(cmd *cobra.Command, args []string) {
+	util.CheckTerraformVersion()
 	src := util.NormalizePath(rsrc)
 	dirPath := src + "/___Combined_Resource_Groups___"
 

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"embed"
 	"errors"
 	"fmt"
 	"log"
@@ -15,7 +16,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var eTmplFile string
+//go:embed master.tmpl
+var content embed.FS
 
 // terrafyCmd represents the terrafy command
 var terrafyCmd = &cobra.Command{
@@ -35,6 +37,7 @@ func init() {
 }
 
 func runTerrafy(cmd *cobra.Command, args []string) {
+	util.CheckTerraformVersion()
 	src := util.NormalizePath(rsrc)
 	yml := util.NormalizePath(ryml)
 	if rg {
@@ -48,12 +51,12 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
 
 	configModules := inout.ReadConfig(yml)
+	scf.CreateFolders(configModules)
 
 	/////
 	_, imports_mapping, unmapped_resources := gen.GenerateImports(resourcesMapping, configModules)
 
 	resourceMap := gen.CreateVars(parsedBlocks.Resources, configModules.Modules, imports_mapping)
-	scf.CreateFolders(configModules)
 	err := scf.CreateFiles(parsedBlocks, resourceMap, configModules)
 	if err != nil {
 		log.Fatal(err)
@@ -72,10 +75,9 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 		FoundResources:    gen.Found_resources,
 	}
 	fmt.Println("")
-	tmplFile := "master.tmpl"
-	// tmpl, err := template.New(tmplFile).ParseFiles(tmplFile)
-	tmpl, err := template.New(tmplFile).ParseFiles(tmplFile)
 
+	tmplData, _ := content.ReadFile("master.tmpl")
+	tmpl, err := template.New("master").Parse(string(tmplData))
 	if err != nil {
 		fmt.Println("This is wrong")
 	}
