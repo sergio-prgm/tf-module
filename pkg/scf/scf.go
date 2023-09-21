@@ -275,6 +275,7 @@ func change_resource_id_reference(key string, configModules inout.YamlMapping, c
 	main_resource := "azurerm_" + cleanResource
 	id_resource := strings.Replace(key, "_ids", "", 1)
 	id_resource = strings.Replace(id_resource, "_id", "", 1)
+	id_resource = strings.Replace(id_resource, "__full__", "", 1)
 	this_resource_module := ""
 	id_resource_module := ""
 	var tryString string
@@ -287,12 +288,13 @@ func change_resource_id_reference(key string, configModules inout.YamlMapping, c
 				if resource == main_resource {
 					this_resource_module = module.Name
 				}
+
 				if resource_key == resource {
 					id_resource_module = module.Name
 				}
 			}
 		}
-
+		fmt.Println(this_resource_module + " ---- " + id_resource_module)
 		///Dentro do mesmo ficheiro não é preciso output
 		if this_resource_module == id_resource_module {
 			tryString = tabs + key + " = "
@@ -300,18 +302,29 @@ func change_resource_id_reference(key string, configModules inout.YamlMapping, c
 				tryString += "[for id in " + acess_variable + ": startswith(id, \"/subscriptions/\") ? id : " + resource_key + ".res_" + id_resource + "s[id].id]\n"
 				tryString += "[for id in " + acess_variable + ": " + resource_key + ".res_" + id_resource + "s[id].id]\n"
 			} else {
-				second_acess_variable := strings.Replace(acess_variable, "\"]", "__full__\"]", 1)
+				second_acess_variable := ""
+				if strings.Contains(acess_variable, "\"]") {
+					second_acess_variable = strings.Replace(acess_variable, "\"]", "__full__\"]", 1)
+				} else {
+					second_acess_variable = acess_variable + "__full__"
+				}
 				tryString += "try(" + resource_key + ".res_" + id_resource + "s[" + acess_variable + "].id, try(" + second_acess_variable + ", null))\n"
 			}
 		} else if this_resource_module == "" || id_resource_module == "" {
 			//Um deles nao tem nada, nao mudar a logica que ja tava antes
+
 			tryString = fmt.Sprintf("%s%s = try(%s, null)\n", tabs, key, acess_variable)
 		} else {
 			tryString = tabs + key + " = "
 			if strings.Contains(key, "_ids") {
 				tryString += "[for id in " + acess_variable + ": startswith(id, \"/subscriptions/\") ? id : " + "var." + id_resource + "[id].id]\n"
 			} else {
-				second_acess_variable := strings.Replace(acess_variable, "\"]", "__full__\"]", 1)
+				second_acess_variable := ""
+				if strings.Contains(acess_variable, "\"]") {
+					second_acess_variable = strings.Replace(acess_variable, "\"]", "__full__\"]", 1)
+				} else {
+					second_acess_variable = acess_variable + "__full__"
+				}
 				tryString += "try(var." + id_resource + "[" + acess_variable + "].id, try(var." + id_resource + "[" + second_acess_variable + "].id, null))\n"
 			}
 			/// add to outputs
