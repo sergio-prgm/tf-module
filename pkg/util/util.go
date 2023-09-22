@@ -49,7 +49,7 @@ func CheckTerraformVersion() {
 	// Run the command and capture its output
 	output, err := cmdVersion.Output()
 	if err != nil {
-		log.Fatalf("Failed to execute command: %s", err)
+		log.Fatalf("Failed to execute command: %s\nTerraform doesn't seem to be accessible from your PATH", err)
 	}
 
 	// Use a regular expression to extract the version number
@@ -70,8 +70,10 @@ func CheckTerraformVersion() {
 	// Check if version is greater than or equal to 1.5
 	constraint, _ := semver.NewConstraint(">= 1.5")
 	if constraint.Check(version) {
-		fmt.Print(EmphasizeStr(fmt.Sprintf("Terraform Version %s is greater than or equal to 1.5\n\n", versionStr), Green, Bold))
+		// fmt.Print(EmphasizeStr(fmt.Sprintf("Terraform Version %s is greater than or equal to 1.5\n\n", versionStr), Green, Bold))
+		fmt.Print(EmphasizeStr(fmt.Sprintf("Terraform version is correct (%s).\n\n", versionStr), Green, Bold))
 	} else {
-		fmt.Print(EmphasizeStr(fmt.Sprintf("Terraform Version %s and needs to be at least 1.5\n\n", versionStr), Red, Bold))
+		fmt.Print(EmphasizeStr(fmt.Sprintf("Terraform version %s and needs to be at least 1.5\n", versionStr), Red, Bold))
+		fmt.Print(EmphasizeStr(fmt.Sprint("https://developer.hashicorp.com/terraform/downloads "), Yellow, Bold))
 	}
 }
