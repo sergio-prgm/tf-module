@@ -157,6 +157,34 @@ func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string
 	string_to_join := ""
 	content := ""
 	its_id := false
+	found_common_val := false
+	found_common_name := false
+	var common_value string
+	//////
+	common_vars := inout.Yaml_mapping.CommonVars
+	for _, common := range common_vars {
+		found_common_val = false
+		found_common_name = false
+		if common.Name == splittedStr[0] {
+			found_common_name = true
+			for ind, val := range common.Value {
+				temp_string := strings.Join(splittedStr[1:], " ")
+				temp_string = strings.Replace(temp_string, " ", "", -1)
+				temp_string = strings.Replace(temp_string, "=", "", -1)
+				temp_string = strings.Replace(temp_string, "\"", "", -1)
+				if val == temp_string {
+					common_value = "\"" + strconv.Itoa(ind) + "\""
+					found_common_val = true
+					break
+				}
+			}
+		}
+		if found_common_name {
+			break
+		}
+	}
+	/////
+
 	if strings.Contains(splittedStr[0], "_id") && !strings.Contains(splittedStr[0], "_ids") {
 		its_id = true
 		found_resource := findResourceInYaml(strings.Replace(splittedStr[0], "_id", "", 1), modules)
@@ -233,7 +261,13 @@ func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string
 
 		}
 	}
-	if string_to_join == "" {
+	if found_common_name {
+		if found_common_val {
+			content += fmt.Sprintf("\"%s\" : %s", splittedStr[0], common_value)
+		} else {
+			content += fmt.Sprintf("\"%s\" %s", splittedStr[0]+"__full__", strings.Join(splittedStr[1:], " "))
+		}
+	} else if string_to_join == "" {
 		if its_id && !strings.Contains(splittedStr[0], "_ids") {
 			content += fmt.Sprintf("\"%s\" %s", splittedStr[0]+"__full__", strings.Join(splittedStr[1:], " "))
 		} else {
