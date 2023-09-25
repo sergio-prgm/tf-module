@@ -38,6 +38,15 @@ func backendVariables(backend inout.BackendConf, is_backend bool, outputResource
 			backend_string += "\t}\n"
 			backend_string += "}\n"
 		}
+	} else {
+		if !is_backend {
+			backend_string += "data \"terraform_remote_state\" \"" + outputResource + "\" {\n"
+			backend_string += "\tbackend = \"local\"\n"
+			backend_string += "\tconfig = {\n"
+			backend_string += "\tpath = \"./../" + entry_point + "/terraform.tfstate\"\n"
+			backend_string += "\t}\n"
+			backend_string += "}\n"
+		}
 	}
 	return backend_string
 }
@@ -247,7 +256,9 @@ func CreateMainFilesEntryPoints(backend inout.BackendConf, entry_point_mapp map[
 
 	for key, value := range entry_point_mapp {
 		mainContent := strings.Join(parsedBlocks.Providers, "\n\n") + "\n\n" + value
-		mainContent = strings.Replace(mainContent, "backend \"local\" {}", "", 1)
+		if backend.Container_name != "" && backend.Key_prefix != "" && backend.Resource_group_name != "" && backend.Storage_account_name != "" {
+			mainContent = strings.Replace(mainContent, "backend \"local\" {}", "", 1)
+		}
 
 		err := os.WriteFile("./output/EntryPoints/"+key+"/main.tf",
 			[]byte(mainContent),
