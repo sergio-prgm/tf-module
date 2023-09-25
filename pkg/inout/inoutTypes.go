@@ -18,11 +18,6 @@ type BackendConf struct {
 	Key_prefix           string `yaml:"key_prefix"`
 }
 
-type CommonVar struct {
-	Name  string
-	Value []string
-}
-
 type YamlMapping struct {
 	Modules    []Modules   `yaml:"modules"`
 	CommonVars []CommonVar `yaml:"common"`

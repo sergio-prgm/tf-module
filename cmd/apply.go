@@ -44,14 +44,16 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 	if rg {
 		src += "___Combined_Resource_Groups___/"
 	}
+	configModules := inout.ReadConfig(yml)
+	if ep {
+		inout.CheckTfmoduleEntryPoints(configModules)
+	}
 
 	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading config in %s\n", yml), util.Yellow, util.Normal))
 	fmt.Print(util.EmphasizeStr(fmt.Sprintf("Reading terraform code in %s\n", src), util.Yellow, util.Normal))
 
 	parsedBlocks := inout.ReadTfFiles(src)
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
-
-	configModules := inout.ReadConfig(yml)
 
 	scf.CreateFolders(configModules, ep)
 

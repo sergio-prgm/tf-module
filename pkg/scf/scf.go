@@ -15,21 +15,38 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+func backendVariables(backend inout.BackendConf, is_backend bool, outputResource string, entry_point string) string {
+	backend_string := ""
+	if backend.Container_name != "" && backend.Key_prefix != "" && backend.Resource_group_name != "" && backend.Storage_account_name != "" {
+		if is_backend {
+			backend_string = "terraform {\n"
+			backend_string += "\tbackend \"azurerm\" {\n"
+			backend_string += "\t\tresource_group_name = \"" + backend.Resource_group_name + "\"\n"
+			backend_string += "\t\tstorage_account_name = \"" + backend.Storage_account_name + "\"\n"
+			backend_string += "\t\tcontainer_name = \"" + backend.Container_name + "\"\n"
+			backend_string += "\t\tkey = \"" + backend.Key_prefix + entry_point + ".tfstate\"\n"
+			backend_string += "\t}\n"
+			backend_string += "}\n"
+		} else {
+			backend_string += "data \"terraform_remote_state\" \"" + outputResource + "\" {\n"
+			backend_string += "\tbackend = \"azurerm\"\n"
+			backend_string += "\tconfig = {\n"
+			backend_string += "\t\tresource_group_name = \"" + backend.Resource_group_name + "\"\n"
+			backend_string += "\t\tstorage_account_name = \"" + backend.Storage_account_name + "\"\n"
+			backend_string += "\t\tcontainer_name = \"" + backend.Container_name + "\"\n"
+			backend_string += "\t\tkey = \"" + backend.Key_prefix + "." + entry_point + ".tfstate\"\n"
+			backend_string += "\t}\n"
+			backend_string += "}\n"
+		}
+	}
+	return backend_string
+}
+
 // CreateMainFiles creates all the files that are general to the
 // terraform project and not iniside of the "modules" folder, i.e.:
 // main.tf, terraform.tfvars, variables.tf
 func CreateMainFiles(mainContent string, varsContent string, tfvarsContent string, backend inout.BackendConf) error {
-	backend_string := ""
-	if backend.Container_name != "" && backend.Key_prefix != "" && backend.Resource_group_name != "" && backend.Storage_account_name != "" {
-		backend_string = "terraform {\n"
-		backend_string += "\tbackend \"azurerm\" {\n"
-		backend_string += "\t\tresource_group_name = \"" + backend.Resource_group_name + "\"\n"
-		backend_string += "\t\tstorage_account_name = \"" + backend.Storage_account_name + "\"\n"
-		backend_string += "\t\tcontainer_name = \"" + backend.Container_name + "\"\n"
-		backend_string += "\t\tkey = \"" + backend.Key_prefix + ".tfstate\"\n"
-		backend_string += "\t}\n"
-		backend_string += "}\n"
-	}
+	backend_string := backendVariables(backend, true, "", "")
 	if backend_string != "" {
 		mainContent = strings.Replace(mainContent, "backend \"local\" {}", "", 1)
 	}
@@ -133,15 +150,7 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 						break
 					}
 				}
-				data_entry_point[v.EntryPoint] += "data \"terraform_remote_state\" \"" + output.OputputResource + "\" {\n"
-				data_entry_point[v.EntryPoint] += "\tbackend = \"azurerm\"\n"
-				data_entry_point[v.EntryPoint] += "\tconfig = {\n"
-				data_entry_point[v.EntryPoint] += "\t\tresource_group_name = \"" + configModules.Backend.Resource_group_name + "\"\n"
-				data_entry_point[v.EntryPoint] += "\t\tstorage_account_name = \"" + configModules.Backend.Storage_account_name + "\"\n"
-				data_entry_point[v.EntryPoint] += "\t\tcontainer_name = \"" + configModules.Backend.Container_name + "\"\n"
-				data_entry_point[v.EntryPoint] += "\t\tkey = \"" + configModules.Backend.Key_prefix + "." + entry_point + ".tfstate\"\n"
-				data_entry_point[v.EntryPoint] += "\t}\n"
-				data_entry_point[v.EntryPoint] += "}\n"
+				data_entry_point[v.EntryPoint] += backendVariables(configModules.Backend, false, output.OputputResource, entry_point)
 				if ep {
 					resourceCall += "\t" + output.OputputResource + " = data.terraform_remote_state." + output.OputputResource + ".outputs." + output.OputputResource + "\n"
 				} else {
@@ -227,9 +236,6 @@ func CreateMainFilesEntryPoints(backend inout.BackendConf, entry_point_mapp map[
 	common_tfvars_message := "// Automatically generated variables\n// Should be changed\n"
 	common_vars := "// Automatically generated variables\n// Should be changed"
 	common_vars += "\n\nvariable \"common\" { type = any }"
-	if backend.Container_name == "" || backend.Key_prefix == "" || backend.Resource_group_name == "" || backend.Storage_account_name == "" {
-		log.Fatalf("Missing fields for the Backend")
-	}
 
 	err := os.WriteFile("./output/EntryPoints/0_CommonVars/terraform.tfvars",
 		[]byte(common_tfvars),
@@ -283,14 +289,7 @@ func CreateMainFilesEntryPoints(backend inout.BackendConf, entry_point_mapp map[
 			log.Fatalf("Error creating variables.tf:\n%v", err)
 		}
 
-		backend_string = "terraform {\n"
-		backend_string += "\tbackend \"azurerm\" {\n"
-		backend_string += "\t\tresource_group_name = \"" + backend.Resource_group_name + "\"\n"
-		backend_string += "\t\tstorage_account_name = \"" + backend.Storage_account_name + "\"\n"
-		backend_string += "\t\tcontainer_name = \"" + backend.Container_name + "\"\n"
-		backend_string += "\t\tkey = \"" + backend.Key_prefix + "." + key + ".tfstate\"\n"
-		backend_string += "\t}\n"
-		backend_string += "}\n"
+		backend_string = backendVariables(backend, true, "", "."+key)
 
 		err = os.WriteFile("./output/EntryPoints/"+key+"/backend.tf",
 			[]byte(backend_string),
