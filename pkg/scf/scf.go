@@ -224,11 +224,21 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 
 func CreateMainFilesEntryPoints(backend inout.BackendConf, entry_point_mapp map[string]string, vars_entry_point map[string]string, tfvars_entry_point map[string]string, common_tfvars string, parsedBlocks inout.ParsedTf, output_entry_point map[string]string, data_entry_point map[string]string) error {
 	backend_string := ""
+	common_tfvars_message := "// Automatically generated variables\n// Should be changed\n"
 	common_vars := "// Automatically generated variables\n// Should be changed"
 	common_vars += "\n\nvariable \"common\" { type = any }"
 	if backend.Container_name == "" || backend.Key_prefix == "" || backend.Resource_group_name == "" || backend.Storage_account_name == "" {
 		log.Fatalf("Missing fields for the Backend")
 	}
+
+	err := os.WriteFile("./output/EntryPoints/0_CommonVars/terraform.tfvars",
+		[]byte(common_tfvars),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating main.tf:\n%v", err)
+	}
+
 	for key, value := range entry_point_mapp {
 		mainContent := strings.Join(parsedBlocks.Providers, "\n\n") + "\n\n" + value
 		mainContent = strings.Replace(mainContent, "backend \"local\" {}", "", 1)
@@ -258,7 +268,7 @@ func CreateMainFilesEntryPoints(backend inout.BackendConf, entry_point_mapp map[
 		}
 
 		err = os.WriteFile("./output/EntryPoints/"+key+"/terraform.tfvars",
-			[]byte(common_tfvars+tfvars_entry_point[key]),
+			[]byte(common_tfvars_message+tfvars_entry_point[key]),
 			os.ModePerm)
 
 		if err != nil {
@@ -597,6 +607,12 @@ func CreateFolders(config inout.YamlMapping, ep bool) {
 	}
 	fmt.Print("\n")
 	if ep {
+		fmt.Printf("\nCreating %s folder", "0_CommonVars")
+		path := fmt.Sprintf("output/EntryPoints/%s", "0_CommonVars")
+		err := os.MkdirAll(path, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
 		for _, v := range config.Modules {
 			fmt.Printf("\nCreating %s folder", v.EntryPoint)
 			path := fmt.Sprintf("output/EntryPoints/%s", v.EntryPoint)
@@ -605,6 +621,7 @@ func CreateFolders(config inout.YamlMapping, ep bool) {
 				log.Fatal(err)
 			}
 		}
+
 		fmt.Print("\n")
 	}
 }
