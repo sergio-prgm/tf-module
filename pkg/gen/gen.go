@@ -310,10 +310,11 @@ func insideBracket(stringArr []string, i int, content string, mapped_imports []i
 
 // GenerateImports returnes an string
 // It generates the imports blocks for the imports.tf file
-func GenerateImports(resources []inout.Resource, modules inout.YamlMapping) (string, []inout.Imports, []string) {
+func GenerateImports(resources []inout.Resource, modules inout.YamlMapping, ep bool) (string, []inout.Imports, []string) {
 	var unmappedResources []string
 	var imports_mapping []inout.Imports
 	resourceModuleMapping := make(map[string]string)
+	imports_entry_point := make(map[string]string)
 	for _, module := range modules.Modules {
 		for _, resourceType := range module.Resources {
 			resourceModuleMapping[resourceType] = module.Name
@@ -339,7 +340,16 @@ func GenerateImports(resources []inout.Resource, modules inout.YamlMapping) (str
 				Resource_id:  resource.ResourceID,
 			})
 			formattedResourceType := fmt.Sprintf("module.%s.%s.%ss[\"%d\"]", moduleName, resource.ResourceType, resource_type, index)
+			entryPoint := ""
+			for _, module := range modules.Modules {
+				if module.Name == moduleName {
+					entryPoint = module.EntryPoint
+					break
+				}
+			}
+			imports_entry_point[entryPoint] += "import {\n  to = " + formattedResourceType + "\n  id = \"" + resource.ResourceID + "\"\n}\n\n"
 			output.WriteString(fmt.Sprintf("import {\n  to = %s\n  id = \"%s\"\n}\n\n", formattedResourceType, resource.ResourceID))
+
 		} else {
 			if !slices.Contains(unmappedResources, resource.ResourceType) {
 				unmappedResources = append(unmappedResources, resource.ResourceType)
@@ -347,11 +357,17 @@ func GenerateImports(resources []inout.Resource, modules inout.YamlMapping) (str
 			otherOutput.WriteString(fmt.Sprintf("%s\n", resource.ResourceType))
 		}
 	}
-
 	finalString := output.String()
-	path := "./output/imports.tf"
-	success := "\nAll the imports where generated correctly!\nFile: " + path
-	inout.WriteToFile(finalString, path, success)
+	success := "\nAll the imports where generated correctly!\nFile: "
+	if ep {
+		for key, val := range imports_entry_point {
+			path := "./output/EntryPoints/" + key + "/imports.tf"
+			inout.WriteToFile(val, path, success+path)
+		}
+	} else {
+		path := "./output/imports.tf"
+		inout.WriteToFile(finalString, path, success+path)
+	}
 	return finalString, imports_mapping, unmappedResources
 }
 

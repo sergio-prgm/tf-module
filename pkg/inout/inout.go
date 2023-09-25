@@ -248,11 +248,35 @@ func WriteYaml(filename string, resources []ModuleResource) {
 	if err != nil {
 		log.Fatalf("Error writing YAML: %v", err)
 	}
+
 	configData, err := yaml.Marshal(map[string][]string{
 		"config": {"one", "two"},
 	})
+	if err != nil {
+		log.Fatalf("Error writing YAML: %v", err)
+	}
+
+	config := map[string]BackendConf{
+		"backend": {
+			Resource_group_name:  "",
+			Storage_account_name: "",
+			Container_name:       "",
+			Key_prefix:           "herramineta.terraform",
+		},
+	}
+
+	backendData, err := yaml.Marshal(config)
+	if err != nil {
+		log.Fatalf("Error writing YAML: %v", err)
+	}
+
+	data = append(data, backendData...)
 	data = append(data, configData...)
-	ioutil.WriteFile(filename, data, 0644)
+
+	err = ioutil.WriteFile(filename, data, 0644)
+	if err != nil {
+		log.Fatalf("Error writing to file: %v", err)
+	}
 	fmt.Println("YAML written to tfmodule.yaml")
 }
 
@@ -393,4 +417,16 @@ func copyFile(src, dest string) error {
 		return err
 	}
 	return nil
+}
+
+func CheckTfmoduleEntryPoints(yaml YamlMapping) {
+	//Check for backend values
+	if yaml.Backend.Container_name == "" || yaml.Backend.Key_prefix == "" || yaml.Backend.Resource_group_name == "" || yaml.Backend.Storage_account_name == "" {
+		log.Fatal(util.EmphasizeStr("Missing fields in the tfmodule.yaml for the backend", util.Red, util.Bold))
+	}
+	for _, module := range yaml.Modules {
+		if module.EntryPoint == "" {
+			log.Fatal(util.EmphasizeStr("Missing the Entry Point for the module "+module.Name, util.Red, util.Bold))
+		}
+	}
 }

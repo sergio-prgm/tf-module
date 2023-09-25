@@ -15,16 +15,55 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+func backendVariables(backend inout.BackendConf, is_backend bool, outputResource string, entry_point string) string {
+	backend_string := ""
+	if backend.Container_name != "" && backend.Key_prefix != "" && backend.Resource_group_name != "" && backend.Storage_account_name != "" {
+		if is_backend {
+			backend_string = "terraform {\n"
+			backend_string += "\tbackend \"azurerm\" {\n"
+			backend_string += "\t\tresource_group_name = \"" + backend.Resource_group_name + "\"\n"
+			backend_string += "\t\tstorage_account_name = \"" + backend.Storage_account_name + "\"\n"
+			backend_string += "\t\tcontainer_name = \"" + backend.Container_name + "\"\n"
+			backend_string += "\t\tkey = \"" + backend.Key_prefix + entry_point + ".tfstate\"\n"
+			backend_string += "\t}\n"
+			backend_string += "}\n"
+		} else {
+			backend_string += "data \"terraform_remote_state\" \"" + outputResource + "\" {\n"
+			backend_string += "\tbackend = \"azurerm\"\n"
+			backend_string += "\tconfig = {\n"
+			backend_string += "\t\tresource_group_name = \"" + backend.Resource_group_name + "\"\n"
+			backend_string += "\t\tstorage_account_name = \"" + backend.Storage_account_name + "\"\n"
+			backend_string += "\t\tcontainer_name = \"" + backend.Container_name + "\"\n"
+			backend_string += "\t\tkey = \"" + backend.Key_prefix + "." + entry_point + ".tfstate\"\n"
+			backend_string += "\t}\n"
+			backend_string += "}\n"
+		}
+	}
+	return backend_string
+}
+
 // CreateMainFiles creates all the files that are general to the
 // terraform project and not iniside of the "modules" folder, i.e.:
 // main.tf, terraform.tfvars, variables.tf
-func CreateMainFiles(mainContent string, varsContent string, tfvarsContent string) error {
+func CreateMainFiles(mainContent string, varsContent string, tfvarsContent string, backend inout.BackendConf) error {
+	backend_string := backendVariables(backend, true, "", "")
+	if backend_string != "" {
+		mainContent = strings.Replace(mainContent, "backend \"local\" {}", "", 1)
+	}
 	err := os.WriteFile("./output/main.tf",
 		[]byte(mainContent),
 		os.ModePerm)
 
 	if err != nil {
 		log.Fatalf("Error creating main.tf:\n%v", err)
+	}
+
+	err = os.WriteFile("./output/backend.tf",
+		[]byte(backend_string),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating backend.tf:\n%v", err)
 	}
 
 	err = os.WriteFile("./output/terraform.tfvars",
@@ -85,15 +124,18 @@ func CreateModuleFiles(filePath string, content string, variables string, output
 
 // CreateFiles creates the module files containing the resources
 // specified in the yaml config file
-func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsContents, configModules inout.YamlMapping) error {
+func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsContents, configModules inout.YamlMapping, ep bool) error {
 	fmt.Print(util.EmphasizeStr("\nCreating files...", util.Green, util.Bold))
 	outputs := GenerateModulesFiles(configModules, resourceMap)
 
 	modulesBlocks := ""
-
+	entry_point_mapp := make(map[string]string)
+	output_entry_point := make(map[string]string)
+	data_entry_point := make(map[string]string)
 	// CreateMain files
 	for i, v := range configModules.Modules {
 		resourceCall := ""
+		//Inside each module ref on main.tf
 		for _, r := range v.Resources {
 			cleanResource := strings.Replace(r, "azurerm_", "", 1) + "s"
 			resourceCall += fmt.Sprintf("\t%s = var.%s\n", cleanResource, cleanResource)
@@ -101,10 +143,32 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 
 		for _, output := range outputs {
 			if v.Name == output.OuputModule {
-				resourceCall += "\t" + output.OputputResource + " = module." + output.OuptutModuleRef + "." + output.OputputResource + "\n"
+				entry_point := ""
+				for _, val_module := range configModules.Modules {
+					if val_module.Name == output.OuptutModuleRef {
+						entry_point = val_module.EntryPoint
+						break
+					}
+				}
+				data_entry_point[v.EntryPoint] += backendVariables(configModules.Backend, false, output.OputputResource, entry_point)
+				if ep {
+					resourceCall += "\t" + output.OputputResource + " = data.terraform_remote_state." + output.OputputResource + ".outputs." + output.OputputResource + "\n"
+				} else {
+					resourceCall += "\t" + output.OputputResource + " = module." + output.OuptutModuleRef + "." + output.OputputResource + "\n"
+				}
+			}
+			if v.Name == output.OuptutModuleRef {
+				output_entry_point[v.EntryPoint] += "output \"" + output.OputputResource + "\" {\n"
+				output_entry_point[v.EntryPoint] += "\t value = module." + output.OuptutModuleRef + "." + output.OputputResource + "\n"
+				output_entry_point[v.EntryPoint] += "}\n\n"
 			}
 		}
-
+		entry_point_mapp[v.EntryPoint] += fmt.Sprintf(
+			"module \"%s\" {\n\tsource = \"./../../Modules/%s\"\n common = var.common\n%s}\n",
+			v.Name,
+			v.Name,
+			resourceCall,
+		)
 		modulesBlocks += fmt.Sprintf(
 			"module \"%s\" {\n\tsource = \"./Modules/%s\"\n common = var.common\n%s}\n",
 			v.Name,
@@ -119,19 +183,24 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 
 	mainContent := strings.Join(parsedBlocks.Providers, "\n\n") + "\n\n" + modulesBlocks
 
-	tfvarsContent := "// Automatically generated variables\n// Should be changed\n"
+	common_tfvars := "// Automatically generated variables\n// Should be changed\n"
 	varsContent := "// Automatically generated variables\n// Should be changed"
 	varsContent += "\n\nvariable \"common\" { type = any }"
-	tfvarsContent += "common = {\n"
+
+	common_tfvars += "common = {\n"
 	for _, common := range configModules.CommonVars {
-		tfvarsContent += "\t\"" + common.Name + "\" : [\n"
+		common_tfvars += "\t\"" + common.Name + "\" : [\n"
 		for _, val := range common.Value {
-			tfvarsContent += "\t\t\"" + val + "\",\n"
+			common_tfvars += "\t\t\"" + val + "\",\n"
 		}
 
-		tfvarsContent += "\t]\n"
+		common_tfvars += "\t]\n"
 	}
-	tfvarsContent += "}\n"
+	common_tfvars += "}\n"
+	tfvarsContent := common_tfvars
+
+	tfvars_entry_point := make(map[string]string)
+	vars_entry_point := make(map[string]string)
 	for _, module := range configModules.Modules {
 		tfvarsContent += "\n// Start of the variables for the module " + module.Name + "\n"
 		for _, resource_name := range module.Resources {
@@ -143,8 +212,10 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 					if err != nil {
 						fmt.Println(err)
 					}
+					tfvars_entry_point[module.EntryPoint] += fmt.Sprintf("%s = %s\n\n", name, string(encodedVar))
 					tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
-					//fmt.Println(fmt.Sprintf("%s = %s\n", name, string(encodedVar)))
+
+					vars_entry_point[module.EntryPoint] += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
 					varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
 				}
 
@@ -152,20 +223,86 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 		}
 		tfvarsContent += "// End of the variables for the module " + module.Name + "\n"
 	}
+	if ep {
+		CreateMainFilesEntryPoints(configModules.Backend, entry_point_mapp, vars_entry_point, tfvars_entry_point, common_tfvars+"\n", parsedBlocks, output_entry_point, data_entry_point)
+	} else {
+		CreateMainFiles(mainContent, varsContent, tfvarsContent, configModules.Backend)
+	}
+	return nil
+}
 
-	/*
-		for name, resource := range resourceMap {
-			encodedVar, err := json.MarshalIndent(resource, " ", "  ")
-			if err != nil {
-				fmt.Println(err)
-			}
-			tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
-			//fmt.Println(fmt.Sprintf("%s = %s\n", name, string(encodedVar)))
-			varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
+func CreateMainFilesEntryPoints(backend inout.BackendConf, entry_point_mapp map[string]string, vars_entry_point map[string]string, tfvars_entry_point map[string]string, common_tfvars string, parsedBlocks inout.ParsedTf, output_entry_point map[string]string, data_entry_point map[string]string) error {
+	backend_string := ""
+	common_tfvars_message := "// Automatically generated variables\n// Should be changed\n"
+	common_vars := "// Automatically generated variables\n// Should be changed"
+	common_vars += "\n\nvariable \"common\" { type = any }"
+
+	err := os.WriteFile("./output/EntryPoints/0_CommonVars/terraform.tfvars",
+		[]byte(common_tfvars),
+		os.ModePerm)
+
+	if err != nil {
+		log.Fatalf("Error creating main.tf:\n%v", err)
+	}
+
+	for key, value := range entry_point_mapp {
+		mainContent := strings.Join(parsedBlocks.Providers, "\n\n") + "\n\n" + value
+		mainContent = strings.Replace(mainContent, "backend \"local\" {}", "", 1)
+
+		err := os.WriteFile("./output/EntryPoints/"+key+"/main.tf",
+			[]byte(mainContent),
+			os.ModePerm)
+
+		if err != nil {
+			log.Fatalf("Error creating main.tf:\n%v", err)
 		}
-	*/
 
-	CreateMainFiles(mainContent, varsContent, tfvarsContent)
+		err = os.WriteFile("./output/EntryPoints/"+key+"/output.tf",
+			[]byte(output_entry_point[key]),
+			os.ModePerm)
+
+		if err != nil {
+			log.Fatalf("Error creating output.tf:\n%v", err)
+		}
+
+		err = os.WriteFile("./output/EntryPoints/"+key+"/data.tf",
+			[]byte(data_entry_point[key]),
+			os.ModePerm)
+
+		if err != nil {
+			log.Fatalf("Error creating data.tf:\n%v", err)
+		}
+
+		err = os.WriteFile("./output/EntryPoints/"+key+"/terraform.tfvars",
+			[]byte(common_tfvars_message+tfvars_entry_point[key]),
+			os.ModePerm)
+
+		if err != nil {
+			log.Fatalf("Error creating terraform.tfvars:\n%v", err)
+		}
+
+		err = os.WriteFile("./output/EntryPoints/"+key+"/variables.tf",
+			[]byte(common_vars+vars_entry_point[key]),
+			os.ModePerm)
+
+		if err != nil {
+			log.Fatalf("Error creating variables.tf:\n%v", err)
+		}
+
+		backend_string = backendVariables(backend, true, "", "."+key)
+
+		err = os.WriteFile("./output/EntryPoints/"+key+"/backend.tf",
+			[]byte(backend_string),
+			os.ModePerm)
+
+		if err != nil {
+			log.Fatalf("Error creating backend.tf:\n%v", err)
+		}
+
+		fmt.Print("\n./output/EntryPoints/" + key + "/main.tf created...")
+		fmt.Print("\n")
+	}
+
 	return nil
 }
 
@@ -339,7 +476,7 @@ func change_resource_id_reference(key string, configModules inout.YamlMapping, c
 				}
 			}
 		}
-    
+
 		if this_resource_module == id_resource_module {
 			tryString = tabs + key + " = "
 			if strings.Contains(key, "_ids") {
@@ -385,7 +522,7 @@ func change_resource_id_reference(key string, configModules inout.YamlMapping, c
 	} else {
 		if found_common_name {
 			second_acess_variable := strings.Replace(acess_variable, "\"]", "__full__\"]", 1)
-			tryString = fmt.Sprintf("%s%s = try(%s, try(var.common.%s[%s],null))\n", tabs, key, second_acess_variable, key, acess_variable)
+			tryString = fmt.Sprintf("%s%s = try(var.common.%s[%s], try(%s,null))\n", tabs, key, key, acess_variable, second_acess_variable)
 		} else {
 			tryString = fmt.Sprintf("%s%s = try(%s, null)\n", tabs, key, acess_variable)
 		}
@@ -439,7 +576,7 @@ func appendToBlock(blockMap map[string]string, blockKey, innerKey, line string) 
 
 // createFolders creates all the necessary folders with the information outlined
 // in the yaml config file
-func CreateFolders(config inout.YamlMapping) {
+func CreateFolders(config inout.YamlMapping, ep bool) {
 	fmt.Print(util.EmphasizeStr("\nCreating folders...", util.Green, util.Bold))
 	_, err := os.Stat("output")
 
@@ -468,4 +605,22 @@ func CreateFolders(config inout.YamlMapping) {
 		}
 	}
 	fmt.Print("\n")
+	if ep {
+		fmt.Printf("\nCreating %s folder", "0_CommonVars")
+		path := fmt.Sprintf("output/EntryPoints/%s", "0_CommonVars")
+		err := os.MkdirAll(path, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, v := range config.Modules {
+			fmt.Printf("\nCreating %s folder", v.EntryPoint)
+			path := fmt.Sprintf("output/EntryPoints/%s", v.EntryPoint)
+			err := os.MkdirAll(path, os.ModePerm)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		fmt.Print("\n")
+	}
 }
