@@ -34,6 +34,7 @@ and the --src flag, which should be the path to the folder with the resource gro
 func init() {
 	rootCmd.AddCommand(terrafyCmd)
 	terrafyCmd.PersistentFlags().BoolVar(&rg, "rg", false, "Cambiar (default false)")
+	terrafyCmd.PersistentFlags().BoolVar(&ep, "ep", false, "Flag to put the code trough different Entry points (default false)")
 }
 
 func runTerrafy(cmd *cobra.Command, args []string) {
@@ -51,13 +52,14 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
 
 	configModules := inout.ReadConfig(yml)
-	scf.CreateFolders(configModules)
+
+	scf.CreateFolders(configModules, ep)
 
 	/////
-	_, imports_mapping, unmapped_resources := gen.GenerateImports(resourcesMapping, configModules)
+	_, imports_mapping, unmapped_resources := gen.GenerateImports(resourcesMapping, configModules, ep)
 
 	resourceMap := gen.CreateVars(parsedBlocks.Resources, configModules.Modules, imports_mapping)
-	err := scf.CreateFiles(parsedBlocks, resourceMap, configModules)
+	err := scf.CreateFiles(parsedBlocks, resourceMap, configModules, ep)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -11,6 +11,7 @@ var (
 	rsrc string
 	ryml string
 	rg   bool
+	ep   bool
 )
 
 // In cmd/root.go

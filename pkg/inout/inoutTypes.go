@@ -1,8 +1,9 @@
 package inout
 
 type Modules struct {
-	Name      string   `yaml:"name"`
-	Resources []string `yaml:"resources"`
+	Name       string   `yaml:"name"`
+	EntryPoint string   `yaml:"entry_point"`
+	Resources  []string `yaml:"resources"`
 }
 
 type CommonVar struct {
@@ -10,10 +11,18 @@ type CommonVar struct {
 	Value []string
 }
 
+type BackendConf struct {
+	Resource_group_name  string `yaml:"resource_group_name"`
+	Storage_account_name string `yaml:"storage_account_name"`
+	Container_name       string `yaml:"container_name"`
+	Key_prefix           string `yaml:"key_prefix"`
+}
+
 type YamlMapping struct {
 	Modules    []Modules   `yaml:"modules"`
 	CommonVars []CommonVar `yaml:"common"`
 	Confg      []string    `yaml:"config"`
+	Backend    BackendConf `yaml:"backend"`
 }
 
 type ParsedTf struct {
