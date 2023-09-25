@@ -24,7 +24,7 @@ modules:
 common:
     - name: location
       value: 
-        - eastus2
+        - eastus
         - northus
     - name: resource_group_name
       value:

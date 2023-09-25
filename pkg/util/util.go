@@ -3,7 +3,6 @@ package util
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -49,14 +48,14 @@ func CheckTerraformVersion() {
 	// Run the command and capture its output
 	output, err := cmdVersion.Output()
 	if err != nil {
-		log.Fatalf("Failed to execute command: %s", err)
+		fmt.Printf("Failed to execute command: %s\n", err)
 	}
 
 	// Use a regular expression to extract the version number
 	re := regexp.MustCompile(`Terraform v([\d\.]+)`)
 	matches := re.FindSubmatch(output)
 	if matches == nil {
-		log.Fatalf("Failed to find version in output")
+		fmt.Println("Failed to find version in output")
 	}
 
 	// Extract version
@@ -64,7 +63,7 @@ func CheckTerraformVersion() {
 
 	version, err := semver.NewVersion(versionStr)
 	if err != nil {
-		log.Fatalf("Failed to parse version: %s", err)
+		fmt.Printf("Failed to parse version: %s\n", err)
 	}
 
 	// Check if version is greater than or equal to 1.5
