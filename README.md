@@ -1,4 +1,4 @@
-# TFModule | Automatize deployable IaC in azure
+# TFModule | Automate deployable IaC in azure
 
 ## Purpose
 
