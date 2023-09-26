@@ -15,7 +15,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func backendVariables(backend inout.BackendConf, is_backend bool, outputResource string, entry_point string) string {
+func backendVariables(backend inout.BackendConf, is_backend bool, outputResource string, entry_point string, data string) string {
 	backend_string := ""
 	if backend.Container_name != "" && backend.Key_prefix != "" && backend.Resource_group_name != "" && backend.Storage_account_name != "" {
 		if is_backend {
@@ -28,24 +28,28 @@ func backendVariables(backend inout.BackendConf, is_backend bool, outputResource
 			backend_string += "\t}\n"
 			backend_string += "}\n"
 		} else {
-			backend_string += "data \"terraform_remote_state\" \"" + outputResource + "\" {\n"
-			backend_string += "\tbackend = \"azurerm\"\n"
-			backend_string += "\tconfig = {\n"
-			backend_string += "\t\tresource_group_name = \"" + backend.Resource_group_name + "\"\n"
-			backend_string += "\t\tstorage_account_name = \"" + backend.Storage_account_name + "\"\n"
-			backend_string += "\t\tcontainer_name = \"" + backend.Container_name + "\"\n"
-			backend_string += "\t\tkey = \"" + backend.Key_prefix + "." + entry_point + ".tfstate\"\n"
-			backend_string += "\t}\n"
-			backend_string += "}\n"
+			if !strings.Contains(data, "data \"terraform_remote_state\" \""+outputResource+"\" {\n") {
+				backend_string += "data \"terraform_remote_state\" \"" + outputResource + "\" {\n"
+				backend_string += "\tbackend = \"azurerm\"\n"
+				backend_string += "\tconfig = {\n"
+				backend_string += "\t\tresource_group_name = \"" + backend.Resource_group_name + "\"\n"
+				backend_string += "\t\tstorage_account_name = \"" + backend.Storage_account_name + "\"\n"
+				backend_string += "\t\tcontainer_name = \"" + backend.Container_name + "\"\n"
+				backend_string += "\t\tkey = \"" + backend.Key_prefix + "." + entry_point + ".tfstate\"\n"
+				backend_string += "\t}\n"
+				backend_string += "}\n"
+			}
 		}
 	} else {
 		if !is_backend {
-			backend_string += "data \"terraform_remote_state\" \"" + outputResource + "\" {\n"
-			backend_string += "\tbackend = \"local\"\n"
-			backend_string += "\tconfig = {\n"
-			backend_string += "\tpath = \"./../" + entry_point + "/terraform.tfstate\"\n"
-			backend_string += "\t}\n"
-			backend_string += "}\n"
+			if !strings.Contains(data, "data \"terraform_remote_state\" \""+outputResource+"\" {\n") {
+				backend_string += "data \"terraform_remote_state\" \"" + outputResource + "\" {\n"
+				backend_string += "\tbackend = \"local\"\n"
+				backend_string += "\tconfig = {\n"
+				backend_string += "\tpath = \"./../" + entry_point + "/terraform.tfstate\"\n"
+				backend_string += "\t}\n"
+				backend_string += "}\n"
+			}
 		}
 	}
 	return backend_string
@@ -55,7 +59,7 @@ func backendVariables(backend inout.BackendConf, is_backend bool, outputResource
 // terraform project and not iniside of the "modules" folder, i.e.:
 // main.tf, terraform.tfvars, variables.tf
 func CreateMainFiles(mainContent string, varsContent string, tfvarsContent string, backend inout.BackendConf) error {
-	backend_string := backendVariables(backend, true, "", "")
+	backend_string := backendVariables(backend, true, "", "", "")
 	if backend_string != "" {
 		mainContent = strings.Replace(mainContent, "backend \"local\" {}", "", 1)
 	}
@@ -159,7 +163,7 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 						break
 					}
 				}
-				data_entry_point[v.EntryPoint] += backendVariables(configModules.Backend, false, output.OputputResource, entry_point)
+				data_entry_point[v.EntryPoint] += backendVariables(configModules.Backend, false, output.OputputResource, entry_point, data_entry_point[v.EntryPoint])
 				if ep {
 					string_to_add := "\t" + output.OputputResource + " = data.terraform_remote_state." + output.OputputResource + ".outputs." + output.OputputResource + "\n"
 					if !strings.Contains(resourceCall, string_to_add) {
@@ -309,7 +313,7 @@ func CreateMainFilesEntryPoints(backend inout.BackendConf, entry_point_mapp map[
 			log.Fatalf("Error creating variables.tf:\n%v", err)
 		}
 
-		backend_string = backendVariables(backend, true, "", "."+key)
+		backend_string = backendVariables(backend, true, "", "."+key, "")
 
 		err = os.WriteFile("./output/EntryPoints/"+key+"/backend.tf",
 			[]byte(backend_string),
@@ -450,7 +454,7 @@ func addBlockInsideBlock(mainkey string, key string, second_block map[string]int
 	for innerKey := range second_block {
 		acess_variable := fmt.Sprintf("%s.value.%s.%s", mainkey, key, innerKey)
 		line := ""
-		line, outputs = change_resource_id_reference(key, configModules, cleanResource, "\t", acess_variable, outputs)
+		line, outputs = change_resource_id_reference(innerKey, configModules, cleanResource, "\t", acess_variable, outputs)
 		content += line
 		if !existsBlockInnerKey(blockInnerKey, mainkey, key, innerKey) {
 			blockInnerKey = append(blockInnerKey, inout.BlockInnerKey{
