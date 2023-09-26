@@ -16,17 +16,17 @@ var multipleRGCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(multipleRGCmd)
-
+	multipleRGCmd.PersistentFlags().StringVar(&rsrc_rg, "rg", "./resource_groups", "The folder or path where the resources groups folders are located")
 }
 
 func runMultipleRG(cmd *cobra.Command, args []string) {
 	util.CheckTerraformVersion()
-	src := util.NormalizePath(rsrc)
-	dirPath := src + "/___Combined_Resource_Groups___"
+	src := util.NormalizePath(rsrc_rg)
+	dirPath := "./src/"
 
 	json, terra := inout.ReadMultipleResourceGroups(src, dirPath)
 
-	src = src + "/___Combined_Resource_Groups___/"
+	src = "./src/"
 	inout.WriteToFile(json, src+"aztfexportResourceMapping.json", "Sucecefully combined the json files")
 	inout.WriteToFile(terra, src+"main.tf", "Sucecefully combined the main.tf files")
 }

@@ -161,15 +161,23 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 				}
 				data_entry_point[v.EntryPoint] += backendVariables(configModules.Backend, false, output.OputputResource, entry_point)
 				if ep {
-					resourceCall += "\t" + output.OputputResource + " = data.terraform_remote_state." + output.OputputResource + ".outputs." + output.OputputResource + "\n"
+					string_to_add := "\t" + output.OputputResource + " = data.terraform_remote_state." + output.OputputResource + ".outputs." + output.OputputResource + "\n"
+					if !strings.Contains(resourceCall, string_to_add) {
+						resourceCall += string_to_add
+					}
 				} else {
-					resourceCall += "\t" + output.OputputResource + " = module." + output.OuptutModuleRef + "." + output.OputputResource + "\n"
+					string_to_add := "\t" + output.OputputResource + " = module." + output.OuptutModuleRef + "." + output.OputputResource + "\n"
+					if !strings.Contains(resourceCall, string_to_add) {
+						resourceCall += string_to_add
+					}
 				}
 			}
 			if v.Name == output.OuptutModuleRef {
-				output_entry_point[v.EntryPoint] += "output \"" + output.OputputResource + "\" {\n"
-				output_entry_point[v.EntryPoint] += "\t value = module." + output.OuptutModuleRef + "." + output.OputputResource + "\n"
-				output_entry_point[v.EntryPoint] += "}\n\n"
+				if !strings.Contains(output_entry_point[v.EntryPoint], "output \""+output.OputputResource+"\" {\n") {
+					output_entry_point[v.EntryPoint] += "output \"" + output.OputputResource + "\" {\n"
+					output_entry_point[v.EntryPoint] += "\t value = module." + output.OuptutModuleRef + "." + output.OputputResource + "\n"
+					output_entry_point[v.EntryPoint] += "}\n\n"
+				}
 			}
 		}
 		entry_point_mapp[v.EntryPoint] += fmt.Sprintf(
@@ -223,9 +231,10 @@ func CreateFiles(parsedBlocks inout.ParsedTf, resourceMap map[string]gen.VarsCon
 					}
 					tfvars_entry_point[module.EntryPoint] += fmt.Sprintf("%s = %s\n\n", name, string(encodedVar))
 					tfvarsContent += fmt.Sprintf("%s = %s\n", name, string(encodedVar))
-
-					vars_entry_point[module.EntryPoint] += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
-					varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
+					if !strings.Contains(varsContent, fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)) {
+						vars_entry_point[module.EntryPoint] += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
+						varsContent += fmt.Sprintf("\n\nvariable \"%s\" { type = any }", name)
+					}
 				}
 
 			}
@@ -413,9 +422,11 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 		//CreateModuleFiles(filePath, content, variables)
 	}
 	for _, output := range outputs {
-		outputs_mapp[output.OuptutModuleRef] += "output \"" + output.OputputResource + "\" {\n"
-		outputs_mapp[output.OuptutModuleRef] += "\t value = azurerm_" + output.OputputResource + ".res_" + output.OputputResource + "s\n}\n"
-		variables_mapp[output.OuputModule] += "variable " + output.OputputResource + "{ type = any }\n"
+		if !strings.Contains(outputs_mapp[output.OuptutModuleRef], "output \""+output.OputputResource+"\" {\n") {
+			outputs_mapp[output.OuptutModuleRef] += "output \"" + output.OputputResource + "\" {\n"
+			outputs_mapp[output.OuptutModuleRef] += "\t value = azurerm_" + output.OputputResource + ".res_" + output.OputputResource + "s\n}\n"
+			variables_mapp[output.OuputModule] += "variable " + output.OputputResource + "{ type = any }\n"
+		}
 
 	}
 	for _, v := range configModules.Modules {
@@ -555,7 +566,7 @@ func existsOutput(outputs []inout.Outputs, to_add inout.Outputs) bool {
 // adds the basic fields on a resource (e.g name = try(each.value.name, null))
 func addBasicModuleField(keys_array []string, block_content string, key string, configModules inout.YamlMapping, cleanResource string, outputs []inout.Outputs) ([]string, string, []inout.Outputs) {
 	tryString, outputs := change_resource_id_reference(key, configModules, cleanResource, "\t", "each.value."+key, outputs)
-
+	key = strings.Replace(key, "__full__", "", 1)
 	if !stringExists(keys_array, key) {
 		keys_array = append(keys_array, key)
 		block_content += tryString

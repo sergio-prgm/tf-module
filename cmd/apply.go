@@ -33,7 +33,6 @@ and the --src flag, which should be the path to the folder with the resource gro
 
 func init() {
 	rootCmd.AddCommand(terrafyCmd)
-	terrafyCmd.PersistentFlags().BoolVar(&rg, "rg", false, "Cambiar (default false)")
 	terrafyCmd.PersistentFlags().BoolVar(&ep, "ep", false, "Flag to put the code trough different Entry points (default false)")
 }
 
@@ -41,9 +40,6 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 	util.CheckTerraformVersion()
 	src := util.NormalizePath(rsrc)
 	yml := util.NormalizePath(ryml)
-	if rg {
-		src += "___Combined_Resource_Groups___/"
-	}
 	configModules := inout.ReadConfig(yml)
 	if ep {
 		inout.CheckTfmoduleEntryPoints(configModules)

@@ -30,16 +30,12 @@ file is located."`,
 
 func init() {
 	rootCmd.AddCommand(moduleCmd)
-	moduleCmd.PersistentFlags().BoolVar(&rg, "rg", false, "Cambiar (default false)")
 }
 
 func generateYaml(cmd *cobra.Command, args []string) {
 	util.CheckTerraformVersion()
 	yml := util.NormalizePath(ryml)
 	src := util.NormalizePath(rsrc)
-	if rg {
-		src += "___Combined_Resource_Groups___/"
-	}
 
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")
 	csv_resources := inout.ParseCSV(yml + "existing_resources.csv")
