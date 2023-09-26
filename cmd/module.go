@@ -38,7 +38,7 @@ func generateYaml(cmd *cobra.Command, args []string) {
 	yml := util.NormalizePath(ryml)
 	src := util.NormalizePath(rsrc)
 	if rg {
-		src += "___Combined_Resource_Groups___/"
+		src = "./resource_groups/___Combined_Resource_Groups___/"
 	}
 
 	resourcesMapping := inout.JsonParser(src + "aztfexportResourceMapping.json")

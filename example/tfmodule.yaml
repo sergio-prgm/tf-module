@@ -29,11 +29,11 @@ modules:
 common:
     - name: location
       value: 
-        - eastus
-        - northus
+        - eastno
+        - northno
     - name: resource_group_name
       value:
-        - terraform_import
+        - terraform_no
 backend:
   resource_group_name: 
   storage_account_name: terraimporttest13242

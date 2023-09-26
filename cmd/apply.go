@@ -42,7 +42,7 @@ func runTerrafy(cmd *cobra.Command, args []string) {
 	src := util.NormalizePath(rsrc)
 	yml := util.NormalizePath(ryml)
 	if rg {
-		src += "___Combined_Resource_Groups___/"
+		src = "./resource_groups/___Combined_Resource_Groups___/"
 	}
 	configModules := inout.ReadConfig(yml)
 	if ep {

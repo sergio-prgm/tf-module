@@ -2,3 +2,6 @@ output/
 defender-prueba/
 *.exe
 resourceGroups/
+resource_groups/
+src/
+conf/

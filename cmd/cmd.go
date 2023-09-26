@@ -8,10 +8,11 @@ import (
 )
 
 var (
-	rsrc string
-	ryml string
-	rg   bool
-	ep   bool
+	rsrc    string
+	ryml    string
+	rg      bool
+	ep      bool
+	rsrc_rg string
 )
 
 // In cmd/root.go
