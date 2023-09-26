@@ -22,11 +22,11 @@ func init() {
 func runMultipleRG(cmd *cobra.Command, args []string) {
 	util.CheckTerraformVersion()
 	src := util.NormalizePath(rsrc_rg)
-	dirPath := src + "/___Combined_Resource_Groups___"
+	dirPath := "./src/"
 
 	json, terra := inout.ReadMultipleResourceGroups(src, dirPath)
 
-	src = src + "/___Combined_Resource_Groups___/"
+	src = "./src/"
 	inout.WriteToFile(json, src+"aztfexportResourceMapping.json", "Sucecefully combined the json files")
 	inout.WriteToFile(terra, src+"main.tf", "Sucecefully combined the main.tf files")
 }
