@@ -370,9 +370,19 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 										}
 										for innerKey, inner_value := range innerMap {
 											//deveria ser aqui o bloco dentro de bloco
-											if second_block, ok := inner_value.(map[string]interface{}); ok {
-												blockInnerKey, outputs = addBlockInsideBlock(key, innerKey, second_block, blockInnerKey, configModules, cleanResource, outputs)
-												appendToBlock(blockContents, key, "", "")
+											is_second_block, ok := inner_value.([]interface{})
+											if ok {
+												for _, block := range is_second_block {
+													if second_block, ok := block.(map[string]interface{}); ok {
+														blockInnerKey, outputs = addBlockInsideBlock(key, innerKey, second_block, blockInnerKey, configModules, cleanResource, outputs)
+														appendToBlock(blockContents, key, "", "")
+													} else {
+														access_variable := fmt.Sprintf("%s.value[\"%s\"]", key, innerKey)
+														line := ""
+														line, outputs = change_resource_id_reference(innerKey, configModules, cleanResource, "\t\t\t", access_variable, outputs)
+														appendToBlock(blockContents, key, innerKey, line)
+													}
+												}
 											} else {
 												access_variable := fmt.Sprintf("%s.value[\"%s\"]", key, innerKey)
 												line := ""
@@ -409,7 +419,7 @@ func GenerateModulesFiles(configModules inout.YamlMapping, resourceMap map[strin
 						keys := strings.Split(key, " ")
 
 						if keys[1] == blockKey {
-							blockContent += fmt.Sprintf("\t\t\tdynamic \"%s\" {\n\t\t\t\tfor_each = try(%s.value[\"%s\"], []) == [] ? [] : [1]\n\t\t\t\tcontent {\n", keys[0], blockKey, keys[0])
+							blockContent += fmt.Sprintf("\t\t\tdynamic \"%s\" {\n\t\t\t\tfor_each = try(%s.value[\"%s\"], [])\n\t\t\t\tcontent {\n", keys[0], blockKey, keys[0])
 							blockContent += value
 							blockContent += "\t\t\t\t}\n\t\t\t}\n"
 						}
@@ -452,7 +462,7 @@ func existsBlockInnerKey(blockInnerKey []inout.BlockInnerKey, mainkey string, ke
 func addBlockInsideBlock(mainkey string, key string, second_block map[string]interface{}, blockInnerKey []inout.BlockInnerKey, configModules inout.YamlMapping, cleanResource string, outputs []inout.Outputs) ([]inout.BlockInnerKey, []inout.Outputs) {
 	content := ""
 	for innerKey := range second_block {
-		acess_variable := fmt.Sprintf("%s.value.%s.%s", mainkey, key, innerKey)
+		acess_variable := fmt.Sprintf("%s.value.%s", key, innerKey)
 		line := ""
 		line, outputs = change_resource_id_reference(innerKey, configModules, cleanResource, "\t", acess_variable, outputs)
 		content += line

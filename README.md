@@ -115,3 +115,8 @@ GOOS=darwin GOARCH=amd64 go build -o ./bin/mac/tfmodule ./main.go
 
 - [ ] Implement good practices at the same time `apply` is run
 - [ ] Give an option to split the resources into execution steps
+
+### Lifecycle rule *WebApp*
+  lifecycle {
+    ignore_changes = [auth_settings_v2]
+  }
