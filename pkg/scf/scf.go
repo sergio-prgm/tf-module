@@ -558,7 +558,11 @@ func change_resource_id_reference(key string, configModules inout.YamlMapping, c
 	} else {
 		if found_common_name {
 			second_acess_variable := strings.Replace(acess_variable, "\"]", "__full__\"]", 1)
-			tryString = fmt.Sprintf("%s%s = try(var.common.%s[%s], try(%s,null))\n", tabs, key, key, acess_variable, second_acess_variable)
+			if strings.Contains(second_acess_variable, "__full__") {
+				tryString = fmt.Sprintf("%s%s = try(var.common.%s[%s], try(%s,null))\n", tabs, key, key, acess_variable, second_acess_variable)
+			} else {
+				tryString = fmt.Sprintf("%s%s = try(var.common.%s[%s], try(%s__full__,null))\n", tabs, key, key, acess_variable, second_acess_variable)
+			}
 		} else {
 			tryString = fmt.Sprintf("%s%s = try(%s, null)\n", tabs, key, acess_variable)
 		}
