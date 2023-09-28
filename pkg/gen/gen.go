@@ -40,6 +40,94 @@ func CreateVars(rawResources []string, modules []inout.Modules, mapped_imports [
 	return vars
 }
 
+func insideBracketTags(stringArr []string, i int, content string, mapped_imports []inout.Imports, resourceName string, modules []inout.Modules) (int, string) {
+	bracket_count := 1
+	content_to_add := ""
+	for bracket_count > 0 {
+		i++
+		v := stringArr[i]
+		splittedStr := strings.Split(strings.TrimSpace(v), " ")
+		if slices.Contains(splittedStr, "{") {
+			content += "\"" + splittedStr[0] + "\" : {\n"
+			bracket_count += 1
+		} else if slices.Contains(splittedStr, "}") {
+			if content[len(content)-1] == ',' {
+				content = content[:len(content)-1]
+				content += "\n"
+			}
+			content += "},"
+			bracket_count -= 1
+		} else {
+			content += "\n"
+			content_to_add = addContent(splittedStr, mapped_imports, ",", resourceName, modules)
+			content += content_to_add
+		}
+	}
+	return i, content
+}
+
+// insideBracket returnes an int and a string
+// Its used to parse the values inside brackets and its nested values
+func insideBracket(stringArr []string, i int, content string, mapped_imports []inout.Imports, resourceName string, modules []inout.Modules) (int, string) {
+	bracket_count := 1
+	content_to_add := ""
+	keys := make(map[int]string)
+	repeated_key := 0
+	for bracket_count > 0 {
+		i++
+		v := stringArr[i]
+		splittedStr := strings.Split(strings.TrimSpace(v), " ")
+		if slices.Contains(splittedStr, "{") && !slices.Contains(splittedStr, "\"{") {
+			if repeated_key == 0 {
+				content += "\"" + splittedStr[0] + "\" : [\n"
+				content += "{\n"
+			}
+			bracket_count += 1
+			keys[bracket_count] = splittedStr[0]
+		} else if slices.Contains(splittedStr, "}") && !slices.Contains(splittedStr, "\"}") {
+			if content[len(content)-1] == ',' {
+				content = content[:len(content)-1]
+				content += "\n"
+			}
+			if content[len(content)-2] == ',' {
+				content = content[:len(content)-2]
+				content += "\n"
+			}
+			if repeated_key > 0 {
+				repeated_key--
+			}
+			content += "},"
+			i++
+			if i >= len(stringArr) {
+				i--
+			}
+			v := stringArr[i]
+			splittedStr = strings.Split(strings.TrimSpace(v), " ")
+			if splittedStr[0] == keys[bracket_count] {
+				repeated_key++
+				content += "\n{\n"
+			} else if bracket_count > 1 {
+				if content[len(content)-1] == ',' {
+					content = content[:len(content)-1]
+					content += "\n"
+				}
+				if content[len(content)-2] == ',' {
+					content = content[:len(content)-2]
+					content += "\n"
+				}
+				content += "],\n"
+			}
+			i--
+			bracket_count -= 1
+		} else {
+			content += "\n"
+			content_to_add = addContent(splittedStr, mapped_imports, ",", resourceName, modules)
+			content += content_to_add
+		}
+	}
+	return i, content
+}
+
 // ParseResource creates a structured map[string]interface{}
 // Its used to parse the values on the main.tf of aztfexport to generate the terraform.tfvars
 func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceName string, modules []inout.Modules) map[string]interface{} {
@@ -48,6 +136,7 @@ func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceN
 	content := ""
 	//separa tudo por linhas
 	stringArr := strings.Split(rawResource, "\n")
+
 	//percorre linha a linha
 	i := 0
 	last_var := ""
@@ -57,14 +146,14 @@ func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceN
 		//split da linha por espacos
 		splittedStr := strings.Split(strings.TrimSpace(v), " ")
 		//Dentro de um block
-		if slices.Contains(splittedStr, "{") && !slices.Contains(splittedStr, "=") {
+		if slices.Contains(splittedStr, "{") && !slices.Contains(splittedStr, "=") && !slices.Contains(splittedStr, "\"{") {
 			last_var = splittedStr[0]
 			content += "\"" + splittedStr[0] + "\" : [\n"
 			content += "{\n"
 			i, content = insideBracket(stringArr, i, content, mapped_imports, resourceName, modules)
 			still_first_string := true
 			i += 1
-			for still_first_string && i < len(stringArr) {
+			for still_first_string && i < len(stringArr)-1 {
 				v = stringArr[i]
 				splittedStr := strings.Split(strings.TrimSpace(v), " ")
 				// ainda dentro do bloco
@@ -77,14 +166,18 @@ func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceN
 						content = content[:len(content)-1]
 						content += "\n"
 					}
+					if content[len(content)-2] == ',' {
+						content = content[:len(content)-2]
+						content += "\n"
+					}
 					content += "],\n"
 					still_first_string = false
 					i--
 				}
 			}
-		} else if slices.Contains(splittedStr, "{") {
+		} else if slices.Contains(splittedStr, "{") && !slices.Contains(splittedStr, "\"{") {
 			content += "\"" + splittedStr[0] + "\" : {\n"
-			i, content = insideBracket(stringArr, i, content, mapped_imports, resourceName, modules)
+			i, content = insideBracketTags(stringArr, i, content, mapped_imports, resourceName, modules)
 		} else {
 			v = stringArr[i]
 			splittedStr := strings.Split(strings.TrimSpace(v), " ")
@@ -105,7 +198,6 @@ func ParseResource(rawResource string, mapped_imports []inout.Imports, resourceN
 		content = content[:len(content)-1]
 		content += "\n"
 	}
-
 	jsonedString := "{" + strings.ReplaceAll(content, " = ", ":") + "\n}"
 	err := json.Unmarshal([]byte(jsonedString), &resource)
 	if err != nil {
@@ -154,6 +246,8 @@ func findResourceInYaml(resourceName string, modules []inout.Modules) bool {
 }
 
 func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string string, resourceName string, modules []inout.Modules) string {
+	if strings.Contains(strings.Join(splittedStr[1:], " "), "}") {
+	}
 	string_to_join := ""
 	content := ""
 	its_id := false
@@ -278,34 +372,6 @@ func addContent(splittedStr []string, mapped_imports []inout.Imports, end_string
 	}
 	content += end_string
 	return content
-}
-
-// insideBracket returnes an int and a string
-// Its used to parse the values inside brackets and its nested values
-func insideBracket(stringArr []string, i int, content string, mapped_imports []inout.Imports, resourceName string, modules []inout.Modules) (int, string) {
-	bracket_count := 1
-	content_to_add := ""
-	for bracket_count > 0 {
-		i++
-		v := stringArr[i]
-		splittedStr := strings.Split(strings.TrimSpace(v), " ")
-		if slices.Contains(splittedStr, "{") {
-			content += "\"" + splittedStr[0] + "\" : {\n"
-			bracket_count += 1
-		} else if slices.Contains(splittedStr, "}") {
-			if content[len(content)-1] == ',' {
-				content = content[:len(content)-1]
-				content += "\n"
-			}
-			content += "},"
-			bracket_count -= 1
-		} else {
-			content += "\n"
-			content_to_add = addContent(splittedStr, mapped_imports, ",", resourceName, modules)
-			content += content_to_add
-		}
-	}
-	return i, content
 }
 
 // GenerateImports returnes an string
